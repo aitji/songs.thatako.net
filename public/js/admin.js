@@ -1,0 +1,347 @@
+(function () {
+    let latestSnapshot = null
+    let dragSourceId = null
+    const DEFAULTS = {
+        requestCap: 2,
+        openTime: "06:30", closeTime: "07:45",
+        requestOpen: true
+    }
+
+    const ICONS = {
+        up: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5 L20 16 L4 16 Z" fill="currentColor"/></svg>',
+        down: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 19 L4 8 L20 8 Z" fill="currentColor"/></svg>',
+        play: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 4 L20 12 L6 20 Z" fill="currentColor"/></svg>',
+        skip: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 5 L19 19 M19 5 L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        check: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 12 L10 18 L20 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    }
+
+    const $ = (e) => document.getElementById(e)
+    const loginSection = $("login-section")
+    const panelSection = $("panel-section")
+    const loginForm = $("login-form")
+    const passwordInput = $("password-input")
+    const loginBtn = $("login-btn")
+    const loginBtnLabel = $("login-btn-label")
+    const logoutBtn = $("logout-btn")
+    const helpBtn = $("help-btn")
+
+    const settingsStatus = $("settings-status")
+    const requestOpenToggle = $("request-open-toggle")
+    const capInput = $("cap-input")
+    const openTimeInput = $("open-time-input")
+    const closeTimeInput = $("close-time-input")
+    const settingsSaveBtn = $("settings-save-btn")
+    const settingsSaveLabel = $("settings-save-label")
+    const settingsResetBtn = $("settings-reset-btn")
+    const settingsStatusMsg = $("settings-status-msg")
+
+    const addForm = $("add-song-form")
+    const addUrlInput = $("add-youtube-url")
+    const addNickInput = $("add-nickname")
+    const addSongBtn = $("add-song-btn")
+    const addSongLabel = $("add-song-label")
+    const addSongStatus = $("add-song-status")
+
+    const nowPlayingPanel = $("admin-now-playing")
+    const queuePanel = $("admin-queue")
+    const playedPanel = $("admin-played")
+
+    const escapeHtml = (str) => {
+        const d = document.createElement("div")
+        d.textContent = str == null ? "" : str
+        return d.innerHTML
+    }
+
+    const applySettingsStatus = () => {
+        if (!latestSnapshot) return
+        const status = window.timeUtil.computeLiveStatus(latestSnapshot.session)
+        settingsStatus.className = `status-line ${status.open ? "is-open" : "is-closed"}`
+        settingsStatus.innerHTML = `<span class="status-dot"></span><span>${status.label}</span>`
+    }
+
+    // auth
+    const setLoginBusy = (busy) => {
+        loginBtn.disabled = busy
+        passwordInput.disabled = busy
+        loginBtnLabel.innerHTML = busy ? '<span class="spinner"></span> กำลังเข้าสู่ระบบ...' : "เข้าสู่ระบบ"
+    }
+
+    loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        passwordInput.classList.remove("input-error")
+        setLoginBusy(true)
+        try {
+            await window.api.post("/api/admin/login", { password: passwordInput.value })
+            onAuthed()
+        } catch (err) {
+            passwordInput.classList.add("input-error")
+            passwordInput.value = ""
+            passwordInput.focus()
+            window.ui.showToast(
+                err.code === "too_many_attempts" ? "ลองรหัสผ่านผิดหลายครั้งเกินไป กรุณารอสักครู่" : "รหัสผ่านไม่ถูกต้อง",
+                "error"
+            )
+        } finally { setLoginBusy(false) }
+    })
+
+    logoutBtn.addEventListener("click", async () => {
+        await window.api.post("/api/admin/logout")
+        location.reload()
+    })
+
+    const onAuthed = () => {
+        loginSection.style.display = "none"
+        panelSection.style.display = "block"
+        window.api.get("/api/state").then(renderSnapshot).catch(() => { })
+        window.connectEvents(renderSnapshot, {
+            onDisconnected: () => window.ui.showToast("การเชื่อมต่อขาดหาย กำลังลองใหม่...", "error"),
+            onReconnected: () => window.ui.showToast("เชื่อมต่อใหม่แล้ว"),
+        })
+        if (!localStorage.getItem("msq_admin_seen_help")) {
+            localStorage.setItem("msq_admin_seen_help", "1")
+            setTimeout(openHelp, 500)
+        }
+    }
+
+    window.api
+        .get("/api/admin/me")
+        .then((r) => (r.authed) && onAuthed())
+        .catch(() => { })
+
+    setInterval(applySettingsStatus, 30000)
+    const openHelp = () => window.ui.openInfoModal(
+        "วิธีใช้งานห้องควบคุม",
+        `<p><strong>รับคำขอเพลง</strong> ปิดสวิตช์นี้เพื่อหยุดรับคำขอทันที โดยไม่ต้องรอถึงเวลาปิดรับ สถานะด้านบนสวิตช์จะรวมทั้งสวิตช์นี้และเวลาที่ตั้งไว้ ให้รู้ทันทีว่าตอนนี้เปิดหรือปิดรับอยู่</p>
+            <p><strong>ไอคอนในคิว</strong> ▲▼ เลื่อนลำดับ<br>▶ เล่นเพลงนี้<br>✕ ข้าม (ไม่นับโควตาผู้ส่ง)<br>🗑 ลบออก<br>ลากที่ "⋮⋮" เพื่อสลับลำดับได้เช่นกัน ปุ่มลูกศรใช้ได้เสมอแม้บนมือถือ</p>`
+    )
+
+    helpBtn.addEventListener("click", openHelp)
+    const setSettingsBusy = (busy) => {
+        settingsSaveBtn.disabled = busy
+        settingsResetBtn.disabled = busy
+        requestOpenToggle.disabled = busy
+        capInput.disabled = busy
+        openTimeInput.disabled = busy
+        closeTimeInput.disabled = busy
+        settingsSaveLabel.innerHTML = busy ? '<span class="spinner"></span> กำลังบันทึก...' : "บันทึกการตั้งค่า"
+    }
+
+    settingsSaveBtn.addEventListener("click", async () => {
+        const cap = parseInt(capInput.value, 10)
+        const patch = { requestOpen: requestOpenToggle.checked }
+        if (!Number.isNaN(cap)) patch.requestCap = cap
+        if (openTimeInput.value) patch.openAt = window.timeUtil.bangkokTimeToEpochToday(openTimeInput.value)
+        if (closeTimeInput.value) patch.closeAt = window.timeUtil.bangkokTimeToEpochToday(closeTimeInput.value)
+
+        setSettingsBusy(true)
+        settingsStatusMsg.textContent = "กำลังบันทึก..."
+        try {
+            await window.api.post("/api/admin/settings", patch)
+            settingsStatusMsg.textContent = "บันทึกการตั้งค่าแล้ว"
+            window.ui.showToast("บันทึกการตั้งค่าแล้ว")
+        } catch {
+            settingsStatusMsg.textContent = "บันทึกไม่สำเร็จ"
+            window.ui.showToast("บันทึกการตั้งค่าไม่สำเร็จ ลองอีกครั้ง", "error")
+        } finally { setSettingsBusy(false) }
+    })
+
+    const diffRow = (label, oldV, newV) => `<li><span>${label}</span><span><span class="diff-old">${oldV}</span><span class="diff-new">${newV}</span></span></li>`
+    const resetDiffHtml = () => {
+        if (!latestSnapshot) return "<p>ไม่พบข้อมูลปัจจุบัน</p>"
+        const cur = latestSnapshot.session
+        const curOpenTime = window.timeUtil.bangkokTimeStr(cur.openAt)
+        const curCloseTime = window.timeUtil.bangkokTimeStr(cur.closeAt)
+        const rows = []
+        if (cur.requestCap !== DEFAULTS.requestCap) rows.push(diffRow("จำนวนสูงสุดต่อคน", cur.requestCap, DEFAULTS.requestCap))
+        if (curOpenTime !== DEFAULTS.openTime) rows.push(diffRow("เปิดรับตอน", curOpenTime, DEFAULTS.openTime))
+        if (curCloseTime !== DEFAULTS.closeTime) rows.push(diffRow("ปิดรับตอน", curCloseTime, DEFAULTS.closeTime))
+        if (cur.requestOpen !== DEFAULTS.requestOpen) rows.push(diffRow("รับคำขอเพลง", cur.requestOpen ? "เปิด" : "ปิด", DEFAULTS.requestOpen ? "เปิด" : "ปิด"))
+        if (rows.length === 0) return "<p>การตั้งค่าปัจจุบันตรงกับค่าเริ่มต้นอยู่แล้ว ไม่มีอะไรต้องเปลี่ยน</p>"
+        return `<p>การตั้งค่าต่อไปนี้จะถูกเปลี่ยนกลับเป็นค่าเริ่มต้น:</p><ul class="diff-list">${rows.join("")}</ul>`
+    }
+
+    settingsResetBtn.addEventListener("click", async () => {
+        const bodyHtml = resetDiffHtml()
+        const result = await window.ui.openModal({
+            title: "รีเซ็ตเป็นค่าเริ่มต้น",
+            bodyText: bodyHtml,
+            fields: [],
+            actions: [
+                { label: "ยกเลิก", value: "cancel" },
+                { label: "รีเซ็ต", value: "confirm", variant: "primary" },
+            ],
+        })
+        if (!result || result.action !== "confirm") return
+        try {
+            await window.api.post("/api/admin/settings/reset")
+            window.ui.showToast("รีเซ็ตการตั้งค่าเรียบร้อยแล้ว")
+        } catch { window.ui.showToast("รีเซ็ตไม่สำเร็จ ลองอีกครั้ง", "error") }
+    })
+
+    const setAddSongBusy = (busy) => {
+        addSongBtn.disabled = busy
+        addUrlInput.disabled = busy
+        addNickInput.disabled = busy
+        addSongLabel.innerHTML = busy ? '<span class="spinner"></span> กำลังเพิ่ม...' : "เพิ่มเข้าคิว"
+    }
+
+    addForm.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        addUrlInput.classList.remove("input-error")
+        setAddSongBusy(true)
+        addSongStatus.textContent = "กำลังเพิ่มเพลง..."
+        try {
+            await window.api.post("/api/admin/queue/add", {
+                youtubeUrl: addUrlInput.value.trim(),
+                nickname: addNickInput.value.trim() || null,
+            })
+            addUrlInput.value = ""
+            addNickInput.value = ""
+            addSongStatus.textContent = "เพิ่มเพลงแล้ว"
+            window.ui.showToast("เพิ่มเพลงเข้าคิวแล้ว")
+        } catch (err) {
+            const message = err.code === "duplicate_song" ? "เพลงนี้อยู่ในคิวแล้ว" : "เพิ่มเพลงไม่สำเร็จ"
+            addSongStatus.textContent = message
+            addUrlInput.classList.add("input-error")
+            window.ui.showToast(message, "error")
+        } finally { setAddSongBusy(false) }
+    })
+
+    const skip = async (id) => {
+        const result = await window.ui.openModal({
+            title: "ข้ามเพลงนี้",
+            bodyText: "ใส่เหตุผลถ้าต้องการให้ผู้ส่งเห็น หรือปล่อยว่างไว้ก็ได้",
+            fields: [{ id: "reason", label: "เหตุผล (ไม่บังคับ)", placeholder: "เช่น ไม่เหมาะกับเช้านี้" }],
+            actions: [
+                { label: "ยกเลิก", value: "cancel" },
+                { label: "ข้ามเพลง", value: "confirm", variant: "danger" },
+            ],
+        });
+        if (!result || result.action !== "confirm") return;
+        await window.api.post(`/api/admin/queue/${id}/skip`, { reason: result.values.reason || null });
+    }
+
+    const playNow = async (id) => await window.api.post(`/api/admin/queue/${id}/play`)
+    const markPlayed = async (id) => await window.api.post(`/api/admin/queue/${id}/played`)
+    const removeSong = async (id) => {
+        const res = await window.ui.openModal({
+            title: "ลบเพลงนี้ออกจากคิว",
+            bodyText: 'ลบแล้วจะไม่สามารถกู้คืนได้ ผู้ส่งจะเห็นสถานะเป็น "ข้ามเพลง"',
+            fields: [],
+            actions: [
+                { label: "ยกเลิก", value: "cancel" },
+                { label: "ลบเลย", value: "confirm", variant: "danger" },
+            ],
+        })
+        if (!res || res.action !== "confirm") return
+        await window.api.post(`/api/admin/queue/${id}/delete`)
+    }
+
+    const move = async (id, dir) => {
+        if (!latestSnapshot) return
+        const ids = latestSnapshot.queue.map((q) => q.id)
+        const idx = ids.indexOf(id)
+        const newIdx = idx + dir
+        if (idx === -1 || newIdx < 0 || newIdx >= ids.length) return
+        [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]]
+        await window.api.post("/api/admin/queue/reorder", { orderedIds: ids })
+    }
+
+    // rendering
+    const renderSnapshot = (snap) => {
+        latestSnapshot = snap
+        applySettingsStatus()
+
+        requestOpenToggle.checked = snap.session.requestOpen
+        capInput.value = snap.session.requestCap
+        openTimeInput.value = window.timeUtil.bangkokTimeStr(snap.session.openAt)
+        closeTimeInput.value = window.timeUtil.bangkokTimeStr(snap.session.closeAt)
+
+        nowPlayingPanel.innerHTML = snap.nowPlaying
+            ? rowHtml(snap.nowPlaying, { nowPlaying: true })
+            : '<p class="empty-hint">ยังไม่มีเพลงกำลังเปิด</p>'
+
+        queuePanel.innerHTML = ""
+        if (snap.queue.length === 0) queuePanel.innerHTML = '<p class="empty-hint">คิวว่าง</p>'
+        else snap.queue.forEach((q) => queuePanel.appendChild(queueRowEl(q)))
+
+        playedPanel.innerHTML =
+            snap.played.map((p) => rowHtml(p, { played: true })).join("") ||
+            '<p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p>'
+
+        bindActionButtons()
+    }
+
+    const rowHtml = (r, opts = {}) => {
+        const cls = opts.played ? "admin-row played" : opts.nowPlaying ? "admin-row now-playing" : "admin-row"
+        const badge = r.source === "admin" ? '<span class="badge-pr">PR</span>' : ""
+        const action = opts.nowPlaying
+            ? `<div class="admin-row-actions"><button class="row-btn success" data-action="played" data-id="${r.id}" title="เล่นจบแล้ว" aria-label="เล่นจบแล้ว">${ICONS.check}</button></div>`
+            : ""
+        return `
+        <div class="${cls}">
+            <img class="thumb" src="${r.thumbnail}" alt="" loading="lazy" />
+            <div class="admin-row-body">
+              <div class="admin-row-title">${escapeHtml(r.title || r.youtubeId)}${badge}</div>
+              <div class="admin-row-sub">${escapeHtml(r.nickname || "ไม่ระบุชื่อ")}</div>
+            </div>
+            ${action}
+        </div>`
+    }
+
+    const queueRowEl = (q) => {
+        const div = document.createElement("div")
+        div.className = "admin-row"
+        div.draggable = true
+        div.dataset.id = q.id
+        const badge = q.source === "admin" ? '<span class="badge-pr">PR</span>' : ""
+        div.innerHTML = `
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <img class="thumb" src="${q.thumbnail}" alt="" loading="lazy" />
+        <div class="admin-row-body">
+            <div class="admin-row-title">${escapeHtml(q.title || q.youtubeId)}${badge}</div>
+            <div class="admin-row-sub">${escapeHtml(q.nickname || "ไม่ระบุชื่อ")}</div>
+        </div>
+        <div class="admin-row-actions">
+            <button class="row-btn" data-action="play" data-id="${q.id}" title="เล่นเพลงนี้" aria-label="เล่นเพลงนี้">${ICONS.play}</button>
+            <button class="row-btn" data-action="up" data-id="${q.id}" title="เลื่อนขึ้น" aria-label="เลื่อนขึ้น">${ICONS.up}</button>
+            <button class="row-btn" data-action="down" data-id="${q.id}" title="เลื่อนลง" aria-label="เลื่อนลง">${ICONS.down}</button>
+            <button class="row-btn" data-action="skip" data-id="${q.id}" title="ข้าม" aria-label="ข้าม">${ICONS.skip}</button>
+            <button class="row-btn danger" data-action="delete" data-id="${q.id}" title="ลบ" aria-label="ลบ">${ICONS.trash}</button>
+        </div>`
+
+        div.addEventListener("dragstart", () => {
+            dragSourceId = q.id
+            div.classList.add("dragging")
+        })
+        div.addEventListener("dragend", () => div.classList.remove("dragging"))
+        div.addEventListener("dragover", (e) => e.preventDefault())
+        div.addEventListener("drop", async (e) => {
+            e.preventDefault()
+            if (!dragSourceId || dragSourceId === q.id || !latestSnapshot) return
+            const ids = latestSnapshot.queue.map((x) => x.id)
+            const from = ids.indexOf(dragSourceId)
+            const to = ids.indexOf(q.id)
+            if (from === -1 || to === -1) return
+            ids.splice(to, 0, ids.splice(from, 1)[0])
+            dragSourceId = null
+            await window.api.post("/api/admin/queue/reorder", { orderedIds: ids })
+        })
+
+        return div
+    }
+
+    const bindActionButtons = () => document.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.onclick = () => {
+            const id = btn.dataset.id
+            const action = btn.dataset.action
+            if (action === "up") return move(id, -1)
+            if (action === "down") return move(id, 1)
+            if (action === "play") return playNow(id)
+            if (action === "skip") return skip(id)
+            if (action === "delete") return removeSong(id)
+            if (action === "played") return markPlayed(id)
+        }
+    })
+})()

@@ -1,0 +1,44 @@
+{
+    "name": "ขอเพลงช่วงเช้า / MSR",
+    "short_name": "ขอเพลงช่วงเช้า",
+    "description": "เว็บไซต์สำหรับขอเพลงเสียงตามสายช่วงเช้า สำหรับงานประชาสัมพันธ์ โรงเรียนท่าตะโกพิทยาคม",
+    "lang": "th",
+    "dir": "ltr",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "theme_color": "#ffffff",
+    "background_color": "#ffffff",
+    "icons": [
+        {
+            "src": "/img/android-icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-icon-48x48.png",
+            "sizes": "48x48",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-icon-36x36.png",
+            "sizes": "36x36",
+            "type": "image/png"
+        }
+    ]
+}

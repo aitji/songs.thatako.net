@@ -1,0 +1,23 @@
+name = "morning-song-queue-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "morning-song-queue"
+database_id = "b4ec38c9-47fb-48e4-901e-c40355bdf870"
+
+[[durable_objects.bindings]]
+name = "MORNING_ROOM"
+class_name = "MorningRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MorningRoom"]
+
+[[routes]]
+pattern = "api.songs.thatako.net"
+custom_domain = true
+
+[vars]
+ALLOWED_ORIGIN = "https://songs.thatako.net"
