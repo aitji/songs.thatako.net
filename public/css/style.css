@@ -142,7 +142,7 @@ img {
 
 /* bottom tab-bar */
 .tabbar {
-    /* position: fixed; */
+    position: sticky;
     left: 0;
     right: 0;
     bottom: 0;
@@ -798,6 +798,10 @@ img.thumb {
 
     .topbar {
         position: static;
+    }
+
+    .tabbar {
+        position: fixed;
     }
 
     .app-content {
