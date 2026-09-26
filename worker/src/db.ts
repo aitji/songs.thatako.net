@@ -1,9 +1,10 @@
-import type { PublicRequest, RequestStatus, SessionSettings, SongRequest, StateSnapshot } from "./types"
+import type { ClearScope, ConnectionInfo, PublicRequest, RequestStatus, SessionSettings, SongRequest, StateSnapshot } from "./types"
 import { thDateStr, thDate, newId, ytThumbnail } from "./utils"
 
 export const DEFAULT_OPEN = "06:30"
 export const DEFAULT_CLOSE = "07:45"
 export const DEFAULT_CAP = 2
+export const DEFAULT_AUTOPLAY = true
 
 const rowToSession = (row: any): SessionSettings => {
     return {
@@ -12,6 +13,7 @@ const rowToSession = (row: any): SessionSettings => {
         closeAt: row.close_at,
         requestCap: row.request_cap,
         requestOpen: !!row.request_open,
+        autoplay: !!row.autoplay,
         createdAt: row.created_at,
     }
 }
@@ -29,6 +31,7 @@ const rowToRequest = (row: any): SongRequest => {
         source: row.source,
         position: row.position,
         skipReason: row.skip_reason,
+        quotaExempt: !!row.quota_exempt,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         playedAt: row.played_at,
@@ -48,23 +51,23 @@ export const ensureSession = async (db: D1Database, sessionId?: string): Promise
     const now = Date.now()
 
     await db
-        .prepare(`INSERT INTO sessions (id, open_at, close_at, request_cap, request_open, created_at) VALUES (?, ?, ?, ?, 1, ?)`)
+        .prepare(`INSERT INTO sessions (id, open_at, close_at, request_cap, request_open, autoplay, created_at) VALUES (?, ?, ?, ?, 1, 1, ?)`)
         .bind(id, openAt, closeAt, cap, now)
         .run()
 
-    return { id, openAt, closeAt, requestCap: cap, requestOpen: true, createdAt: now }
+    return { id, openAt, closeAt, requestCap: cap, requestOpen: true, autoplay: DEFAULT_AUTOPLAY, createdAt: now }
 }
 
 export const updateSession = async (
     db: D1Database,
     sessionId: string,
-    patch: Partial<Pick<SessionSettings, "openAt" | "closeAt" | "requestCap" | "requestOpen">>
+    patch: Partial<Pick<SessionSettings, "openAt" | "closeAt" | "requestCap" | "requestOpen" | "autoplay">>
 ): Promise<SessionSettings> => {
     const current = await ensureSession(db, sessionId)
     const next = { ...current, ...patch }
     await db
-        .prepare(`UPDATE sessions SET open_at = ?, close_at = ?, request_cap = ?, request_open = ? WHERE id = ?`)
-        .bind(next.openAt, next.closeAt, next.requestCap, next.requestOpen ? 1 : 0, sessionId)
+        .prepare(`UPDATE sessions SET open_at = ?, close_at = ?, request_cap = ?, request_open = ?, autoplay = ? WHERE id = ?`)
+        .bind(next.openAt, next.closeAt, next.requestCap, next.requestOpen ? 1 : 0, next.autoplay ? 1 : 0, sessionId)
         .run()
     return next
 }
@@ -74,14 +77,31 @@ export const resetSession = async (db: D1Database, sessionId: string): Promise<S
     closeAt: thDate(DEFAULT_CLOSE),
     requestCap: DEFAULT_CAP,
     requestOpen: true,
+    autoplay: DEFAULT_AUTOPLAY,
 })
 
 export const countActiveRequests = async (db: D1Database, sessionId: string, deviceId: string): Promise<number> => {
     const row = await db
-        .prepare(`SELECT COUNT(*) as c FROM requests WHERE session_id = ? AND device_id = ? AND status IN ('queued','playing','played')`)
+        .prepare(`SELECT COUNT(*) as c FROM requests WHERE session_id = ? AND device_id = ? AND status IN ('queued','playing','played') AND quota_exempt = 0`)
         .bind(sessionId, deviceId)
         .first<{ c: number }>()
     return row?.c ?? 0
+}
+
+export const countActiveRequestsByDevices = async (
+    db: D1Database,
+    sessionId: string,
+    deviceIds: string[]
+): Promise<Record<string, number>> => {
+    const out: Record<string, number> = {}
+    if (deviceIds.length === 0) return out
+    const placeholders = deviceIds.map(() => "?").join(",")
+    const { results } = await db
+        .prepare(`SELECT device_id, COUNT(*) as c FROM requests WHERE session_id = ? AND device_id IN (${placeholders}) AND status IN ('queued','playing','played') AND quota_exempt = 0 GROUP BY device_id`)
+        .bind(sessionId, ...deviceIds)
+        .all<{ device_id: string; c: number }>()
+    for (const r of results ?? []) out[r.device_id] = r.c
+    return out
 }
 
 export const findActiveDuplicate = async (db: D1Database, sessionId: string, youtubeId: string): Promise<boolean> => {
@@ -144,6 +164,7 @@ export const insertRequest = async (
         source: params.source,
         position,
         skipReason: null,
+        quotaExempt: false,
         createdAt: now,
         updatedAt: now,
         playedAt: null,
@@ -186,6 +207,76 @@ export const reorderQueue = async (db: D1Database, sessionId: string, orderedIds
     if (stmts.length) await db.batch(stmts)
 }
 
+export const requeueRequest = async (
+    db: D1Database,
+    sessionId: string,
+    id: string,
+    toFront = false
+): Promise<void> => {
+    const now = Date.now()
+    const restIds = (await getQueue(db, sessionId)).map((r) => r.id).filter((x) => x !== id)
+
+    await db
+        .prepare(`UPDATE requests SET status = 'queued', skip_reason = NULL, updated_at = ? WHERE id = ? AND session_id = ?`)
+        .bind(now, id, sessionId)
+        .run()
+
+    const orderedIds = toFront ? [id, ...restIds] : [...restIds, id]
+    await reorderQueue(db, sessionId, orderedIds)
+}
+
+export const setPlayingExclusive = async (db: D1Database, sessionId: string, id: string): Promise<void> => {
+    const now = Date.now()
+    const current = await getPlaying(db, sessionId)
+    if (current && current.id !== id) await requeueRequest(db, sessionId, current.id, false)
+
+    await db
+        .prepare(`UPDATE requests SET status = 'playing', position = NULL, skip_reason = NULL, updated_at = ? WHERE id = ? AND session_id = ?`)
+        .bind(now, id, sessionId)
+        .run()
+}
+
+export const maybeAutoAdvance = async (db: D1Database, sessionId: string): Promise<boolean> => {
+    const session = await ensureSession(db, sessionId)
+    if (!session.autoplay) return false
+
+    const playing = await getPlaying(db, sessionId)
+    if (playing) return false
+
+    const [next] = await getQueue(db, sessionId)
+    if (!next) return false
+
+    await db
+        .prepare(`UPDATE requests SET status = 'playing', position = NULL, updated_at = ? WHERE id = ?`)
+        .bind(Date.now(), next.id)
+        .run()
+    return true
+}
+
+export const clearQueue = async (
+    db: D1Database,
+    sessionId: string,
+    scope: ClearScope,
+    deviceId?: string | null
+): Promise<void> => {
+    if (scope === "played" || scope === "both") {
+        await db.prepare(`DELETE FROM requests WHERE session_id = ? AND status = 'played'`).bind(sessionId).run()
+    }
+    if (scope === "queued" || scope === "both") {
+        await db.prepare(`DELETE FROM requests WHERE session_id = ? AND status = 'queued'`).bind(sessionId).run()
+    }
+    if (scope === "user_quota") {
+        if (deviceId) await db
+            .prepare(`UPDATE requests SET quota_exempt = 1, updated_at = ? WHERE session_id = ? AND device_id = ?`)
+            .bind(Date.now(), sessionId, deviceId)
+            .run()
+        else await db
+            .prepare(`UPDATE requests SET quota_exempt = 1, updated_at = ? WHERE session_id = ?`)
+            .bind(Date.now(), sessionId)
+            .run()
+    }
+}
+
 export const getQueue = async (db: D1Database, sessionId: string): Promise<SongRequest[]> => {
     const { results } = await db
         .prepare(`SELECT * FROM requests WHERE session_id = ? AND status = 'queued' ORDER BY position ASC`)
@@ -218,7 +309,7 @@ export const listMine = async (db: D1Database, sessionId: string, deviceId: stri
     return (results ?? []).map(rowToRequest)
 }
 
-export const toPublic = (r: SongRequest, deviceId?: string): PublicRequest => {
+export const toPublic = (r: SongRequest, deviceId?: string, includeDeviceId = false): PublicRequest => {
     return {
         id: r.id,
         youtubeId: r.youtubeId,
@@ -231,6 +322,7 @@ export const toPublic = (r: SongRequest, deviceId?: string): PublicRequest => {
         skipReason: r.skipReason,
         createdAt: r.createdAt,
         ...(deviceId ? { mine: r.deviceId === deviceId } : {}),
+        ...(includeDeviceId ? { deviceId: r.deviceId } : {}),
     }
 }
 
@@ -249,6 +341,7 @@ export const buildSnapshot = async (db: D1Database, sessionId: string, version: 
             closeAt: session.closeAt,
             requestCap: session.requestCap,
             requestOpen: session.requestOpen,
+            autoplay: session.autoplay,
             serverTime: Date.now(),
         },
         nowPlaying: nowPlaying ? toPublic(nowPlaying) : null,

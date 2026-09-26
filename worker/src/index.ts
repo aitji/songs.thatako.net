@@ -1,4 +1,4 @@
-import type { Env, StateSnapshot } from "./types"
+import type { ClearScope, ConnectionInfo, Env, StateSnapshot } from "./types"
 import {
     isRateLimit, isPass,
     isAdmin, loginCookie,
@@ -10,11 +10,12 @@ import {
     jsonRes, parseYTID,
 } from "./utils"
 import {
-    buildSnapshot, countActiveRequests,
+    buildSnapshot, clearQueue, countActiveRequests,
+    countActiveRequestsByDevices,
     findActiveDuplicate as findDupe, ensureSession,
     getRequest, insertRequest as insertReq,
-    listMine, reorderQueue,
-    resetSession, setStatus,
+    listMine, maybeAutoAdvance, reorderQueue,
+    requeueRequest, resetSession, setPlayingExclusive, setStatus,
     toPublic, updateSession
 } from "./db"
 export { MorningRoom } from "./morningRoom"
@@ -38,10 +39,12 @@ const ensureSnapshot = async (env: Env, sessionId: string): Promise<StateSnapsho
     return fresh
 }
 
-const bumpAndSync = async (env: Env, sessionId: string): Promise<void> => {
+const bumpAndSync = async (env: Env, sessionId: string): Promise<StateSnapshot> => {
     const stub = getRoomStub(env, sessionId)
     const current = (await (await stub.fetch("https://do/state")).json()) as StateSnapshot
     const nextVer = (current.version ?? 0) + 1
+
+    await maybeAutoAdvance(env.DB, sessionId)
     const snapshot = await buildSnapshot(env.DB, sessionId, nextVer)
 
     await stub.fetch("https://do/sync", {
@@ -49,6 +52,7 @@ const bumpAndSync = async (env: Env, sessionId: string): Promise<void> => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(snapshot)
     })
+    return snapshot
 }
 
 export default {
@@ -77,7 +81,13 @@ export default {
                 await ensureSnapshot(env, id)
 
                 const stub = getRoomStub(env, id)
-                const doResponse = await stub.fetch("https://do/events")
+                const deviceId = url.searchParams.get("deviceId")
+                const admin = await isAdmin(request, env)
+                const doUrl = new URL("https://do/events")
+                if (deviceId) doUrl.searchParams.set("deviceId", deviceId.slice(0, 64))
+                if (admin) doUrl.searchParams.set("admin", "1")
+
+                const doResponse = await stub.fetch(doUrl.toString())
                 const headers = new Headers(doResponse.headers)
 
                 CORS(headers, origin)
@@ -176,6 +186,7 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         const patch: Record<string, unknown> = {}
         if (typeof body.requestCap === "number") patch.requestCap = Math.max(0, Math.min(20, Math.floor(body.requestCap)))
         if (typeof body.requestOpen === "boolean") patch.requestOpen = body.requestOpen
+        if (typeof body.autoplay === "boolean") patch.autoplay = body.autoplay
         if (typeof body.openAt === "number") patch.openAt = body.openAt
         if (typeof body.closeAt === "number") patch.closeAt = body.closeAt
         if (typeof patch.openAt === "number" || typeof patch.closeAt === "number") {
@@ -228,7 +239,7 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         return jsonRes({ ok: true }, {}, origin)
     }
 
-    const actionMatch = path.match(/^\/api\/admin\/queue\/([^/]+)\/(skip|play|played|delete)$/)
+    const actionMatch = path.match(/^\/api\/admin\/queue\/([^/]+)\/(skip|play|played|delete|requeue)$/)
     if (actionMatch && request.method === "POST") {
         const [, id, action] = actionMatch
         const existing = await getRequest(env.DB, id)
@@ -238,10 +249,42 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
             const body = (await request.json().catch(() => ({}))) as any
             const reason = action === "skip" && typeof body?.reason === "string" ? body.reason.trim().slice(0, 80) || null : null
             await setStatus(env.DB, id, "skipped", { skipReason: reason })
-        } else if (action === "play") await setStatus(env.DB, id, "playing")
+        }
+        else if (action === "play") await setPlayingExclusive(env.DB, sessionId, id)
         else if (action === "played") await setStatus(env.DB, id, "played")
+        else if (action === "requeue") await requeueRequest(env.DB, sessionId, id, false)
         await bumpAndSync(env, sessionId)
         return jsonRes({ ok: true }, {}, origin)
+    }
+
+    if (path === "/api/admin/queue/clear" && request.method === "POST") {
+        const body = (await request.json().catch(() => ({}))) as any
+        const scope = body?.scope as ClearScope
+        if (!["played", "queued", "both", "user_quota"].includes(scope)) return ResError("invalid_scope", 400, origin)
+        const deviceId = typeof body?.deviceId === "string" ? body.deviceId.slice(0, 64) : undefined
+        await clearQueue(env.DB, sessionId, scope, deviceId)
+        await bumpAndSync(env, sessionId)
+        return jsonRes({ ok: true }, {}, origin)
+    }
+
+    if (path === "/api/admin/connections" && request.method === "GET") {
+        const stub = getRoomStub(env, sessionId)
+        const res = await stub.fetch("https://do/connections")
+        const connections = (await res.json()) as ConnectionInfo[]
+
+        const deviceIds = [...new Set(connections.map((c) => c.deviceId).filter((x): x is string => !!x))]
+        const counts = await countActiveRequestsByDevices(env.DB, sessionId, deviceIds)
+
+        return jsonRes({
+            connections: connections.map((c) => ({ ...c, songCount: c.deviceId ? (counts[c.deviceId] ?? 0) : 0 })),
+        }, {}, origin)
+    }
+
+    const deviceMatch = path.match(/^\/api\/admin\/device\/([^/]+)\/requests$/)
+    if (deviceMatch && request.method === "GET") {
+        const deviceId = decodeURIComponent(deviceMatch[1]).slice(0, 64)
+        const rows = await listMine(env.DB, sessionId, deviceId)
+        return jsonRes({ requests: rows.map((r) => toPublic(r)) }, {}, origin)
     }
 
     return ResError("not_found", 404, origin)

@@ -8,6 +8,7 @@ export interface Env {
 
 export type RequestStatus = "queued" | "playing" | "played" | "skipped"
 export type RequestSource = "student" | "admin"
+export type ClearScope = "played" | "queued" | "both" | "user_quota"
 
 export interface SongRequest {
     id: string
@@ -21,6 +22,7 @@ export interface SongRequest {
     source: RequestSource
     position: number | null
     skipReason: string | null
+    quotaExempt: boolean
     createdAt: number
     updatedAt: number
     playedAt: number | null
@@ -33,6 +35,7 @@ export interface SessionSettings {
     closeAt: number
     requestCap: number
     requestOpen: boolean
+    autoplay: boolean
     createdAt: number
 }
 
@@ -48,6 +51,7 @@ export interface PublicRequest {
     skipReason: string | null
     createdAt: number
     mine?: boolean
+    deviceId?: string
 }
 
 export interface StateSnapshot {
@@ -58,9 +62,17 @@ export interface StateSnapshot {
         closeAt: number
         requestCap: number
         requestOpen: boolean
+        autoplay: boolean
         serverTime: number
     }
     nowPlaying: PublicRequest | null
     queue: PublicRequest[]
     played: PublicRequest[]
+}
+
+export interface ConnectionInfo {
+    connId: string
+    connectedAt: number
+    isAdmin: boolean
+    deviceId: string | null
 }

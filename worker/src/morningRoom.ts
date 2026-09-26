@@ -1,26 +1,38 @@
-import type { Env, StateSnapshot } from "./types"
+import type { ConnectionInfo, Env, StateSnapshot } from "./types"
 
 const EMPTY_SNAPSHOT: StateSnapshot = {
     version: 0,
-    session: { id: "", openAt: 0, closeAt: 0, requestCap: 2, requestOpen: true, serverTime: 0 },
+    session: { id: "", openAt: 0, closeAt: 0, requestCap: 2, requestOpen: true, autoplay: true, serverTime: 0 },
     nowPlaying: null,
     queue: [], played: []
 }
 
+interface Client {
+    writer: WritableStreamDefaultWriter<Uint8Array>
+    connId: string
+    connectedAt: number
+    isAdmin: boolean
+    deviceId: string | null
+}
+
 export class MorningRoom {
     private state: DurableObjectState
-    private clients: Set<WritableStreamDefaultWriter<Uint8Array>>
+    private clients: Map<string, Client>
     private encoder: TextEncoder
 
     constructor(state: DurableObjectState, _env: Env) {
         this.state = state
-        this.clients = new Set()
+        this.clients = new Map()
         this.encoder = new TextEncoder()
     }
 
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url)
-        if (url.pathname === "/events" && request.method === "GET") return this.handleSSE()
+        if (url.pathname === "/events" && request.method === "GET") return this.handleSSE(url)
+        if (url.pathname === "/connections" && request.method === "GET") {
+            const list = this.listConnections()
+            return new Response(JSON.stringify(list), { headers: { "Content-Type": "application/json" } })
+        }
         if (url.pathname === "/state" && request.method === "GET") {
             const snap = await this.getSnapshot()
             return new Response(JSON.stringify(snap), { headers: { "Content-Type": "application/json" } })
@@ -33,18 +45,32 @@ export class MorningRoom {
         return new Response("not found", { status: 404 })
     }
 
-    private async handleSSE(): Promise<Response> {
+    private listConnections(): ConnectionInfo[] {
+        return Array.from(this.clients.values())
+            .map((c) => ({ connId: c.connId, connectedAt: c.connectedAt, isAdmin: c.isAdmin, deviceId: c.deviceId }))
+            .sort((a, b) => a.connectedAt - b.connectedAt)
+    }
+
+    private async handleSSE(url: URL): Promise<Response> {
         const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
         const writer = writable.getWriter()
-        this.clients.add(writer)
+
+        const client: Client = {
+            writer,
+            connId: crypto.randomUUID(),
+            connectedAt: Date.now(),
+            isAdmin: url.searchParams.get("admin") === "1",
+            deviceId: url.searchParams.get("deviceId"),
+        }
+        this.clients.set(client.connId, client)
 
         const snapshot = await this.getSnapshot()
-        this.safeWrite(writer, "state", snapshot)
+        this.safeWrite(client, "state", snapshot)
 
         const heartbeat = setInterval(() => {
             writer.write(this.encoder.encode(": ping\n\n")).catch(() => {
                 clearInterval(heartbeat)
-                this.clients.delete(writer)
+                this.clients.delete(client.connId)
             })
         }, 15000)
 
@@ -58,9 +84,9 @@ export class MorningRoom {
         })
     }
 
-    private safeWrite(writer: WritableStreamDefaultWriter<Uint8Array>, event: string, data: unknown): void {
+    private safeWrite(client: Client, event: string, data: unknown): void {
         const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-        writer.write(this.encoder.encode(payload)).catch(() => this.clients.delete(writer))
+        client.writer.write(this.encoder.encode(payload)).catch(() => this.clients.delete(client.connId))
     }
 
     private async getSnapshot(): Promise<StateSnapshot> {
@@ -70,6 +96,6 @@ export class MorningRoom {
 
     private async applySnapshot(snapshot: StateSnapshot): Promise<void> {
         await this.state.storage.put("snapshot", snapshot)
-        for (const writer of this.clients) this.safeWrite(writer, "state", snapshot)
+        for (const client of this.clients.values()) this.safeWrite(client, "state", snapshot)
     }
 }

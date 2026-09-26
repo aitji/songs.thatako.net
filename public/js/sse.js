@@ -1,11 +1,14 @@
-function connectEvents(onState, hooks = {}) {
+function connectEvents(onState, hooks = {}, query = {}) {
     let es = null
     let retryDelay = 1000
     let hasWarned = false
     let closedByCaller = false
 
+    const qs = new URLSearchParams(query).toString()
+    const url = window.CONFIG.API_BASE + "/api/events" + (qs ? "?" + qs : "")
+
     function connect() {
-        es = new EventSource(window.CONFIG.API_BASE + "/api/events", { withCredentials: true })
+        es = new EventSource(url, { withCredentials: true })
 
         es.addEventListener("state", (ev) => {
             retryDelay = 1000

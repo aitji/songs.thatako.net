@@ -287,7 +287,7 @@
     window.connectEvents(onSnapshot, {
         onDisconnected: () => window.ui.showToast("การเชื่อมต่อขาดหาย กำลังลองใหม่...", "error"),
         onReconnected: () => window.ui.showToast("เชื่อมต่อกลับมาแล้ว"),
-    })
+    }, { deviceId })
 
     setInterval(applyLiveStatus, 30000)
 })()

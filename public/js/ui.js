@@ -41,9 +41,25 @@
             const root = ensureModalRoot()
 
             const fieldsHtml = fields
-                .map((f) => `
+                .map((f) => {
+                    if (f.type === "radio") {
+                        const opts = (f.options || [])
+                            .map((o) => `
+                            <label class="radio-option">
+                                <input type="radio" name="modal-field-${f.id}" value="${o.value}" ${o.value === f.default ? "checked" : ""} />
+                                <span>${o.label}</span>
+                            </label>`)
+                            .join("")
+                        return `
+                        <div class="field-group">
+                            <label>${f.label}</label>
+                            <div class="radio-group" id="modal-field-${f.id}">${opts}</div>
+                        </div>`
+                    }
+                    return `
                 <label for="modal-field-${f.id}">${f.label}</label>
-                <input type="text" id="modal-field-${f.id}" placeholder="${f.placeholder || ""}" />`)
+                <input type="text" id="modal-field-${f.id}" placeholder="${f.placeholder || ""}" value="${f.default || ""}" />`
+                })
                 .join("")
 
             const actionsHtml = actions
@@ -70,6 +86,11 @@
                 root.querySelector(`[data-idx="${i}"]`).addEventListener("click", () => {
                     const values = {}
                     fields.forEach((f) => {
+                        if (f.type === "radio") {
+                            const checked = root.querySelector(`input[name="modal-field-${f.id}"]:checked`)
+                            values[f.id] = checked ? checked.value : ""
+                            return
+                        }
                         const el = document.getElementById(`modal-field-${f.id}`)
                         values[f.id] = el ? el.value : ""
                     })
@@ -78,7 +99,7 @@
             })
 
             const first = fields[0]
-            if (first) {
+            if (first && first.type !== "radio") {
                 const el = document.getElementById(`modal-field-${first.id}`)
                 if (el) el.focus()
             }
