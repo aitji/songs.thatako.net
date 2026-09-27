@@ -1,4 +1,5 @@
-import type { ConnectionInfo, Env, StateSnapshot } from "./types"
+import type { Env, StateSnapshot } from "./types"
+import { stripDeviceIds } from "./utils"
 
 const EMPTY_SNAPSHOT: StateSnapshot = {
     version: 0,
@@ -8,11 +9,9 @@ const EMPTY_SNAPSHOT: StateSnapshot = {
 }
 
 interface Client {
-    writer: WritableStreamDefaultWriter<Uint8Array>
+    controller: ReadableStreamDefaultController<Uint8Array>
     connId: string
-    connectedAt: number
     isAdmin: boolean
-    deviceId: string | null
 }
 
 export class MorningRoom {
@@ -29,10 +28,6 @@ export class MorningRoom {
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url)
         if (url.pathname === "/events" && request.method === "GET") return this.handleSSE(url)
-        if (url.pathname === "/connections" && request.method === "GET") {
-            const list = this.listConnections()
-            return new Response(JSON.stringify(list), { headers: { "Content-Type": "application/json" } })
-        }
         if (url.pathname === "/state" && request.method === "GET") {
             const snap = await this.getSnapshot()
             return new Response(JSON.stringify(snap), { headers: { "Content-Type": "application/json" } })
@@ -45,36 +40,31 @@ export class MorningRoom {
         return new Response("not found", { status: 404 })
     }
 
-    private listConnections(): ConnectionInfo[] {
-        return Array.from(this.clients.values())
-            .map((c) => ({ connId: c.connId, connectedAt: c.connectedAt, isAdmin: c.isAdmin, deviceId: c.deviceId }))
-            .sort((a, b) => a.connectedAt - b.connectedAt)
-    }
-
-    private async handleSSE(url: URL): Promise<Response> {
-        const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
-        const writer = writable.getWriter()
-
+    private handleSSE(url: URL): Response {
         const client: Client = {
-            writer,
+            controller: null as unknown as ReadableStreamDefaultController<Uint8Array>,
             connId: crypto.randomUUID(),
-            connectedAt: Date.now(),
             isAdmin: url.searchParams.get("admin") === "1",
-            deviceId: url.searchParams.get("deviceId"),
         }
-        this.clients.set(client.connId, client)
 
-        const snapshot = await this.getSnapshot()
-        this.safeWrite(client, "state", snapshot)
+        let heartbeat: ReturnType<typeof setInterval> | null = null
+        const stream = new ReadableStream<Uint8Array>({
+            start: async (controller) => {
+                client.controller = controller
+                this.clients.set(client.connId, client)
 
-        const heartbeat = setInterval(() => {
-            writer.write(this.encoder.encode(": ping\n\n")).catch(() => {
-                clearInterval(heartbeat)
-                this.clients.delete(client.connId)
-            })
-        }, 15000)
+                const snapshot = await this.getSnapshot()
+                this.safeEnqueue(client, "state", client.isAdmin ? snapshot : stripDeviceIds(snapshot))
 
-        return new Response(readable, {
+                heartbeat = setInterval(() => {
+                    try { controller.enqueue(this.encoder.encode(": ping\n\n")) }
+                    catch { this.dropClient(client.connId, heartbeat) }
+                }, 15000)
+            },
+            cancel: () => this.dropClient(client.connId, heartbeat),
+        })
+
+        return new Response(stream, {
             headers: {
                 "Content-Type": "text/event-stream; charset=utf-8",
                 "Cache-Control": "no-cache, no-transform",
@@ -84,9 +74,15 @@ export class MorningRoom {
         })
     }
 
-    private safeWrite(client: Client, event: string, data: unknown): void {
+    private dropClient(connId: string, heartbeat: ReturnType<typeof setInterval> | null): void {
+        if (heartbeat) clearInterval(heartbeat)
+        this.clients.delete(connId)
+    }
+
+    private safeEnqueue(client: Client, event: string, data: unknown): void {
         const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-        client.writer.write(this.encoder.encode(payload)).catch(() => this.clients.delete(client.connId))
+        try { client.controller.enqueue(this.encoder.encode(payload)) }
+        catch { this.clients.delete(client.connId) }
     }
 
     private async getSnapshot(): Promise<StateSnapshot> {
@@ -96,6 +92,9 @@ export class MorningRoom {
 
     private async applySnapshot(snapshot: StateSnapshot): Promise<void> {
         await this.state.storage.put("snapshot", snapshot)
-        for (const client of this.clients.values()) this.safeWrite(client, "state", snapshot)
+        const publicSnapshot = stripDeviceIds(snapshot)
+        for (const client of this.clients.values()) {
+            this.safeEnqueue(client, "state", client.isAdmin ? snapshot : publicSnapshot)
+        }
     }
 }

@@ -1,8 +1,6 @@
 (function () {
     let latestSnapshot = null
     let dragSourceId = null
-    let connectionsTimer = null
-    let openDevicePanelId = null
     const DEFAULTS = {
         requestCap: 2,
         openTime: "06:30", closeTime: "07:45",
@@ -51,9 +49,8 @@
 
     const nowPlayingPanel = $("admin-now-playing")
     const queuePanel = $("admin-queue")
-    const playedPanel = $("admin-played")
-    const connectionsPanel = $("admin-connections")
-    const statConnections = $("stat-connections")
+    const statusPlayedPanel = $("admin-played-status")
+    const queuePlayedPanel = $("admin-played-queue")
     const statQueue = $("stat-queue")
     const statPlayed = $("stat-played")
 
@@ -61,14 +58,6 @@
         const d = document.createElement("div")
         d.textContent = str == null ? "" : str
         return d.innerHTML
-    }
-
-    const relTime = (epoch) => {
-        const diffSec = Math.max(0, Math.floor((Date.now() - epoch) / 1000))
-        if (diffSec < 60) return "เมื่อสักครู่"
-        const diffMin = Math.floor(diffSec / 60)
-        if (diffMin < 60) return `${diffMin} นาทีที่แล้ว`
-        return `${Math.floor(diffMin / 60)} ชั่วโมงที่แล้ว`
     }
 
     const applySettingsStatus = () => {
@@ -89,13 +78,6 @@
             btn.classList.toggle("active", active)
             btn.setAttribute("aria-selected", active ? "true" : "false")
         })
-        if (name === "status") {
-            refreshConnections()
-            if (!connectionsTimer) connectionsTimer = setInterval(refreshConnections, 6000)
-        } else if (connectionsTimer) {
-            clearInterval(connectionsTimer)
-            connectionsTimer = null
-        }
     }
     tabButtons.forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.tab)))
 
@@ -153,7 +135,7 @@
         "วิธีใช้งานห้องควบคุม",
         `<p><strong>แท็บคิว</strong> ดูเพลงที่กำลังเปิดและคิวที่รออยู่ จัดลำดับ เล่น ข้าม หรือลบเพลงได้จากที่นี่</p>
             <p><strong>แท็บตั้งค่า</strong> เปิด/ปิดรับคำขอ ตั้งโควตา เวลาเปิด-ปิด เพิ่มเพลงเอง และล้างคิว/โควตา</p>
-            <p><strong>แท็บสถานะ</strong> ดูว่ามีใครเปิดหน้าเว็บอยู่บ้าง (เชื่อมต่อ SSE) กับประวัติเพลงที่เล่นแล้ว</p>
+            <p><strong>แท็บสถานะ</strong> ดูจำนวนเพลงในคิวกับประวัติเพลงที่เล่นแล้ว</p>
             <p><strong>ไอคอนในคิว</strong> ▲▼ เลื่อนลำดับ<br>▶ เล่นเพลงนี้<br>↩ ย้อนกลับเข้าคิว<br>✕ ข้าม (ไม่นับโควตาผู้ส่ง)<br>🗑 ลบออก<br>ลากที่ "⋮⋮" เพื่อสลับลำดับได้เช่นกัน ปุ่มลูกศรใช้ได้เสมอแม้บนมือถือ</p>`
     )
 
@@ -340,9 +322,11 @@
         if (snap.queue.length === 0) queuePanel.innerHTML = '<p class="empty-hint">คิวว่าง</p>'
         else snap.queue.forEach((q) => queuePanel.appendChild(queueRowEl(q)))
 
-        playedPanel.innerHTML =
-            snap.played.map((p) => rowHtml(p, { played: true })).join("") ||
+        const build = snap.played.map((p) => rowHtml(p, { played: true })).join("") ||
             '<p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p>'
+
+        statusPlayedPanel.innerHTML = build
+        queuePlayedPanel.innerHTML = build
 
         statQueue.textContent = snap.queue.length
         statPlayed.textContent = snap.played.length
@@ -350,9 +334,12 @@
         bindActionButtons()
     }
 
+    const shortDevice = (deviceId) => deviceId ? deviceId.replace(/^dev_/, "").slice(0, 8) : null
+
     const rowHtml = (r, opts = {}) => {
         const cls = opts.played ? "admin-row played" : opts.nowPlaying ? "admin-row now-playing" : "admin-row"
         const badge = r.source === "admin" ? '<span class="badge-pr">PR</span>' : ""
+        const dev = shortDevice(r.deviceId)
         let action = ""
         if (opts.nowPlaying) {
             action = `<div class="admin-row-actions">
@@ -371,7 +358,7 @@
             <img class="thumb" src="${r.thumbnail}" alt="" loading="lazy" />
             <div class="admin-row-body">
               <div class="admin-row-title">${escapeHtml(r.title || r.youtubeId)}${badge}</div>
-              <div class="admin-row-sub">${escapeHtml(r.nickname || "ไม่ระบุชื่อ")}</div>
+              <div class="admin-row-sub">${escapeHtml(r.nickname || "ไม่ระบุชื่อ")}${dev ? ` · <span class="admin-row-device" data-device="${escapeHtml(r.deviceId)}">${escapeHtml(dev)}</span>` : ""}</div>
             </div>
             ${action}
         </div>`
@@ -383,12 +370,13 @@
         div.draggable = true
         div.dataset.id = q.id
         const badge = q.source === "admin" ? '<span class="badge-pr">PR</span>' : ""
+        const dev = shortDevice(q.deviceId)
         div.innerHTML = `
         <span class="drag-handle" aria-hidden="true">⋮⋮</span>
         <img class="thumb" src="${q.thumbnail}" alt="" loading="lazy" />
         <div class="admin-row-body">
             <div class="admin-row-title">${escapeHtml(q.title || q.youtubeId)}${badge}</div>
-            <div class="admin-row-sub">${escapeHtml(q.nickname || "ไม่ระบุชื่อ")}</div>
+            <div class="admin-row-sub">${escapeHtml(q.nickname || "ไม่ระบุชื่อ")}${dev ? ` · <span class="admin-row-device" data-device="${escapeHtml(q.deviceId)}">${escapeHtml(dev)}</span>` : ""}</div>
         </div>
         <div class="admin-row-actions">
             <button class="row-btn" data-action="play" data-id="${q.id}" title="เล่นเพลงนี้" aria-label="เล่นเพลงนี้">${ICONS.play}</button>
@@ -433,82 +421,49 @@
         }
     })
 
-    // status tab: connections
-    const connectionTitle = (c) => {
-        if (c.isAdmin) return "ผู้ดูแลระบบ (PR)"
-        if (c.deviceId) return "ผู้ใช้ " + c.deviceId.replace(/^dev_/, "").slice(0, 8)
-        return "ผู้ใช้ไม่ทราบชื่อ"
-    }
-
-    const refreshConnections = async () => {
-        let data
-        try { data = await window.api.get("/api/admin/connections") }
-        catch { connectionsPanel.innerHTML = '<p class="empty-hint">โหลดข้อมูลการเชื่อมต่อไม่สำเร็จ</p>'; return }
-
-        const conns = data.connections || []
-        statConnections.textContent = conns.length
-
-        if (conns.length === 0) {
-            connectionsPanel.innerHTML = '<p class="empty-hint">ยังไม่มีใครเชื่อมต่ออยู่</p>'
-            return
-        }
-
-        connectionsPanel.innerHTML = conns.map((c) => `
-            <button type="button" class="connection-row" data-conn-device="${c.deviceId ? escapeHtml(c.deviceId) : ""}">
-                <span class="connection-dot ${c.isAdmin ? "is-admin" : ""}"></span>
-                <span class="connection-body">
-                    <div class="connection-title">${escapeHtml(connectionTitle(c))}</div>
-                    <div class="connection-sub">เชื่อมต่อ ${relTime(c.connectedAt)}</div>
-                </span>
-                <span class="connection-meta">${c.deviceId ? `${c.songCount} เพลง` : ""}</span>
-            </button>
-            <div class="device-panel-slot" data-device-slot="${c.deviceId ? escapeHtml(c.deviceId) : ""}"></div>
-        `).join("")
-
-        connectionsPanel.querySelectorAll("[data-conn-device]").forEach((btn) => {
-            const deviceId = btn.dataset.connDevice
-            if (!deviceId) return
-            btn.addEventListener("click", () => toggleDevicePanel(deviceId))
-        })
-
-        if (openDevicePanelId) renderDevicePanel(openDevicePanelId)
-    }
-
-    const toggleDevicePanel = (deviceId) => {
-        openDevicePanelId = openDevicePanelId === deviceId ? null : deviceId
-        // clear any other open panel slots
-        connectionsPanel.querySelectorAll(".device-panel-slot").forEach((slot) => { slot.innerHTML = "" })
-        if (openDevicePanelId) renderDevicePanel(openDevicePanelId)
-    }
-
-    const renderDevicePanel = async (deviceId) => {
-        const slot = connectionsPanel.querySelector(`.device-panel-slot[data-device-slot="${CSS.escape(deviceId)}"]`)
-        if (!slot) return
-        slot.innerHTML = '<div class="device-panel"><p class="empty-hint">กำลังโหลด...</p></div>'
+    const openDeviceModal = async (deviceId) => {
+        window.ui.openInfoModal(`อุปกรณ์ ${escapeHtml(shortDevice(deviceId))}`, '<p class="empty-hint">กำลังโหลด...</p>')
+        const modalBody = document.querySelector("#ui-modal-root .modal-body")
 
         let data
         try { data = await window.api.get(`/api/admin/device/${encodeURIComponent(deviceId)}/requests`) }
-        catch { slot.innerHTML = '<div class="device-panel"><p class="empty-hint">โหลดไม่สำเร็จ</p></div>'; return }
+        catch { if (modalBody) modalBody.innerHTML = '<p class="empty-hint">โหลดไม่สำเร็จ</p>'; return }
+        if (!modalBody) return
 
         const rows = data.requests || []
         const rowsHtml = rows.length
             ? rows.map((r) => rowHtml(r, r.status === "playing" ? { nowPlaying: true } : r.status === "played" ? { played: true } : {})).join("")
             : '<p class="empty-hint">ผู้ใช้นี้ยังไม่มีคำขอเพลง</p>'
 
-        slot.innerHTML = `
-        <div class="device-panel">
-            <div class="device-panel-actions">
-                <button type="button" class="btn-danger-outline" data-reset-quota="${escapeHtml(deviceId)}">รีเซ็ตโควตาของผู้ใช้นี้</button>
-            </div>
-            ${rowsHtml}
-        </div>`
-
-        slot.querySelector("[data-reset-quota]").addEventListener("click", async () => {
+        modalBody.innerHTML = `
+        <div class="device-panel-actions">
+            <button type="button" class="btn-danger-outline" data-reset-quota="${escapeHtml(deviceId)}">รีเซ็ตโควตาของผู้ใช้นี้</button>
+        </div>${rowsHtml}`
+        modalBody.querySelector("[data-reset-quota]").addEventListener("click", async (e) => {
             try {
-                await window.api.post("/api/admin/queue/clear", { scope: "user_quota", deviceId })
-                window.ui.showToast("รีเซ็ตโควตาแล้ว")
-            } catch { window.ui.showToast("รีเซ็ตไม่สำเร็จ ลองอีกครั้ง", "error") }
+                console.log(deviceId, e.currentTarget.dataset.resetQuota ?? 'unknow')
+
+                const result = await window.ui.openModal({
+                    title: `รีเซ็ตโควตาของผู้ ${escapeHtml(deviceId)}`,
+                    bodyText: '',
+                    fields: [],
+                    actions: [
+                        { label: "ยกเลิก", value: "cancel" },
+                        { label: "รีเซ็ต", value: "confirm", variant: "primary" },
+                    ],
+                })
+                if (!result || result.action !== "confirm") return
+                try {
+                    await window.api.post("/api/admin/queue/clear", { scope: "user_quota", deviceId })
+                    window.ui.showToast("รีเซ็ตโควตาแล้ว")
+                } catch { window.ui.showToast("รีเซ็ตไม่สำเร็จ ลองอีกครั้ง", "error") }
+            } catch { window.ui.showToast("ไม่สามารถแสดงข้อมูลได้ ลองอีกครั้ง", "error") }
         })
         bindActionButtons()
     }
+
+    document.addEventListener("click", (e) => {
+        const el = e.target.closest("[data-device]")
+        if (el) openDeviceModal(el.dataset.device)
+    })
 })()

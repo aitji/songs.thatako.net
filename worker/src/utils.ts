@@ -1,3 +1,18 @@
+import type { PublicRequest, StateSnapshot } from "./types"
+
+const stripReqDeviceId = (r: PublicRequest): PublicRequest => {
+    if (!("deviceId" in r)) return r
+    const { deviceId, ...rest } = r
+    return rest
+}
+
+export const stripDeviceIds = (snap: StateSnapshot): StateSnapshot => ({
+    ...snap,
+    nowPlaying: snap.nowPlaying ? stripReqDeviceId(snap.nowPlaying) : null,
+    queue: snap.queue.map(stripReqDeviceId),
+    played: snap.played.map(stripReqDeviceId),
+})
+
 export const jsonRes = (
     data: unknown,
     init: ResponseInit = {},

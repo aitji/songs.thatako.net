@@ -1,4 +1,4 @@
-import type { ClearScope, ConnectionInfo, Env, StateSnapshot } from "./types"
+import type { ClearScope, Env, StateSnapshot } from "./types"
 import {
     isRateLimit, isPass,
     isAdmin, loginCookie,
@@ -8,10 +8,10 @@ import {
     CORS, thDateStr,
     ResError, ytMeta,
     jsonRes, parseYTID,
+    stripDeviceIds,
 } from "./utils"
 import {
     buildSnapshot, clearQueue, countActiveRequests,
-    countActiveRequestsByDevices,
     findActiveDuplicate as findDupe, ensureSession,
     getRequest, insertRequest as insertReq,
     listMine, maybeAutoAdvance, reorderQueue,
@@ -74,7 +74,8 @@ export default {
             if (url.pathname === "/api/state" && request.method === "GET") {
                 await ensureSession(env.DB, id)
                 const snap = await ensureSnapshot(env, id)
-                return jsonRes(snap, {}, origin)
+                const admin = await isAdmin(request, env)
+                return jsonRes(admin ? snap : stripDeviceIds(snap), {}, origin)
             }
             if (url.pathname === "/api/events" && request.method === "GET") {
                 await ensureSession(env.DB, id)
@@ -265,19 +266,6 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         await clearQueue(env.DB, sessionId, scope, deviceId)
         await bumpAndSync(env, sessionId)
         return jsonRes({ ok: true }, {}, origin)
-    }
-
-    if (path === "/api/admin/connections" && request.method === "GET") {
-        const stub = getRoomStub(env, sessionId)
-        const res = await stub.fetch("https://do/connections")
-        const connections = (await res.json()) as ConnectionInfo[]
-
-        const deviceIds = [...new Set(connections.map((c) => c.deviceId).filter((x): x is string => !!x))]
-        const counts = await countActiveRequestsByDevices(env.DB, sessionId, deviceIds)
-
-        return jsonRes({
-            connections: connections.map((c) => ({ ...c, songCount: c.deviceId ? (counts[c.deviceId] ?? 0) : 0 })),
-        }, {}, origin)
     }
 
     const deviceMatch = path.match(/^\/api\/admin\/device\/([^/]+)\/requests$/)

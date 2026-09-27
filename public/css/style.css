@@ -158,6 +158,10 @@ img {
     width: 100%;
 }
 
+.admin-shell .tabbar {
+    position: fixed !important;
+}
+
 .tab-btn {
     flex: 1;
     border: none;
@@ -803,7 +807,7 @@ img.thumb {
 
 @media (max-width: 760px) {
     .tabbar {
-        position: fixed;
+        position: static;
     }
 
     .app-content,
@@ -928,6 +932,17 @@ img.thumb {
     color: var(--text-muted);
 }
 
+.admin-row-device {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    opacity: 0.85;
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.admin-row-device:hover {
+    opacity: 1;
+}
+
 .admin-row-actions {
     display: flex;
     gap: 4px;
@@ -1020,73 +1035,6 @@ img.thumb {
     font-size: 0.74rem;
     color: var(--text-muted);
     margin-top: 2px;
-}
-
-/* status tab: connections list */
-.connection-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 0;
-    border-top: 1px solid var(--border);
-    cursor: pointer;
-    background: none;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    width: 100%;
-    text-align: left;
-    font: inherit;
-    color: inherit;
-}
-
-.connection-row:first-child {
-    border-top: none;
-}
-
-.connection-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    background: var(--success);
-    flex-shrink: 0;
-}
-
-.connection-dot.is-admin {
-    background: var(--accent);
-}
-
-.connection-body {
-    flex: 1 1 140px;
-    min-width: 0;
-}
-
-.connection-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.connection-sub {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
-.connection-meta {
-    font-size: 0.78rem;
-    color: var(--text-faint);
-    flex-shrink: 0;
-    text-align: right;
-}
-
-.device-panel {
-    margin-top: 6px;
-    margin-bottom: 4px;
-    padding: 10px;
-    background: var(--bg);
-    border-radius: var(--radius-md);
 }
 
 .device-panel-actions {

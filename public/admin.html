@@ -91,6 +91,24 @@
                         </div>
                     </div>
                 </section>
+
+                <section class="card">
+                    <h2><span class="dot-bullet"></span>เล่นแล้ว</h2>
+                    <div id="admin-played-queue">
+                        <div class="skeleton-row">
+                            <div class="skeleton skeleton-thumb"></div>
+                            <div style="flex:1">
+                                <div class="skeleton skeleton-line w-80"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton-row">
+                            <div class="skeleton skeleton-thumb"></div>
+                            <div style="flex:1">
+                                <div class="skeleton skeleton-line w-60"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </section>
 
             <!-- TAB: settings + add song -->
@@ -170,10 +188,6 @@
                     <h2><span class="dot-bullet"></span>ภาพรวม</h2>
                     <div class="stat-grid">
                         <div class="stat-card">
-                            <div class="stat-value" id="stat-connections">-</div>
-                            <div class="stat-label">เชื่อมต่ออยู่</div>
-                        </div>
-                        <div class="stat-card">
                             <div class="stat-value" id="stat-queue">-</div>
                             <div class="stat-label">รอคิว</div>
                         </div>
@@ -185,15 +199,8 @@
                 </section>
 
                 <section class="card">
-                    <h2><span class="dot-bullet"></span>การเชื่อมต่อ (SSE)</h2>
-                    <div id="admin-connections">
-                        <p class="empty-hint">กำลังโหลด...</p>
-                    </div>
-                </section>
-
-                <section class="card">
                     <h2><span class="dot-bullet"></span>เล่นแล้ว</h2>
-                    <div id="admin-played">
+                    <div id="admin-played-status">
                         <p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p>
                     </div>
                 </section>

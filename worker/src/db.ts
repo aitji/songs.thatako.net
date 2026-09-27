@@ -1,4 +1,4 @@
-import type { ClearScope, ConnectionInfo, PublicRequest, RequestStatus, SessionSettings, SongRequest, StateSnapshot } from "./types"
+import type { ClearScope, PublicRequest, RequestStatus, SessionSettings, SongRequest, StateSnapshot } from "./types"
 import { thDateStr, thDate, newId, ytThumbnail } from "./utils"
 
 export const DEFAULT_OPEN = "06:30"
@@ -86,22 +86,6 @@ export const countActiveRequests = async (db: D1Database, sessionId: string, dev
         .bind(sessionId, deviceId)
         .first<{ c: number }>()
     return row?.c ?? 0
-}
-
-export const countActiveRequestsByDevices = async (
-    db: D1Database,
-    sessionId: string,
-    deviceIds: string[]
-): Promise<Record<string, number>> => {
-    const out: Record<string, number> = {}
-    if (deviceIds.length === 0) return out
-    const placeholders = deviceIds.map(() => "?").join(",")
-    const { results } = await db
-        .prepare(`SELECT device_id, COUNT(*) as c FROM requests WHERE session_id = ? AND device_id IN (${placeholders}) AND status IN ('queued','playing','played') AND quota_exempt = 0 GROUP BY device_id`)
-        .bind(sessionId, ...deviceIds)
-        .all<{ device_id: string; c: number }>()
-    for (const r of results ?? []) out[r.device_id] = r.c
-    return out
 }
 
 export const findActiveDuplicate = async (db: D1Database, sessionId: string, youtubeId: string): Promise<boolean> => {
@@ -344,8 +328,8 @@ export const buildSnapshot = async (db: D1Database, sessionId: string, version: 
             autoplay: session.autoplay,
             serverTime: Date.now(),
         },
-        nowPlaying: nowPlaying ? toPublic(nowPlaying) : null,
-        queue: queue.map((r) => toPublic(r)),
-        played: played.map((r) => toPublic(r)),
+        nowPlaying: nowPlaying ? toPublic(nowPlaying, undefined, true) : null,
+        queue: queue.map((r) => toPublic(r, undefined, true)),
+        played: played.map((r) => toPublic(r, undefined, true)),
     }
 }

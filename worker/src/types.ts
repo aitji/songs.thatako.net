@@ -69,10 +69,3 @@ export interface StateSnapshot {
     queue: PublicRequest[]
     played: PublicRequest[]
 }
-
-export interface ConnectionInfo {
-    connId: string
-    connectedAt: number
-    isAdmin: boolean
-    deviceId: string | null
-}
