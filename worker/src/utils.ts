@@ -25,8 +25,10 @@ export const jsonRes = (
 }
 
 export const CORS = (h: Headers, og?: string): void => {
-    h.set("Access-Control-Allow-Origin", og || "*")
-    h.set("Access-Control-Allow-Credentials", "true")
+    if (og) {
+        h.set("Access-Control-Allow-Origin", og)
+        h.set("Access-Control-Allow-Credentials", "true")
+    }
     h.set("Access-Control-Allow-Headers", "Content-Type")
     h.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
     h.set("Vary", "Origin")
@@ -52,8 +54,8 @@ export const thDate = (hhmm: string, base: Date = new Date()): number => {
 }
 
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/
-export const parseYTID = (input: string): string | null => {
-    if (!input) return null
+export const parseYTID = (input: unknown): string | null => {
+    if (typeof input !== "string" || !input || input.length > 2048) return null
     const trimmed = input.trim()
     if (YT_ID_REGEX.test(trimmed)) return trimmed
     try {
@@ -79,8 +81,6 @@ export const parseYTID = (input: string): string | null => {
     } catch { return null }
 }
 
-// not sure is this public api or not ._.
-export const ytThumbnail = (videoId: string): string => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 export const ytMeta = async (videoId: string): Promise<{ title: string | null; channel: string | null }> => {
     try {
         const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`

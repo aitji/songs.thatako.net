@@ -1,5 +1,5 @@
 import type { ClearScope, PublicRequest, RequestStatus, SessionSettings, SongRequest, StateSnapshot } from "./types"
-import { thDateStr, thDate, newId, ytThumbnail } from "./utils"
+import { thDateStr, thDate, newId } from "./utils"
 
 export const DEFAULT_OPEN = "06:30"
 export const DEFAULT_CLOSE = "07:45"
@@ -32,6 +32,7 @@ const rowToRequest = (row: any): SongRequest => {
         position: row.position,
         skipReason: row.skip_reason,
         quotaExempt: !!row.quota_exempt,
+        reviewed: !!row.reviewed,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         playedAt: row.played_at,
@@ -149,6 +150,7 @@ export const insertRequest = async (
         position,
         skipReason: null,
         quotaExempt: false,
+        reviewed: false,
         createdAt: now,
         updatedAt: now,
         playedAt: null,
@@ -237,6 +239,13 @@ export const maybeAutoAdvance = async (db: D1Database, sessionId: string): Promi
     return true
 }
 
+export const reviewRequest = async (db: D1Database, id: string, reviewed: boolean): Promise<void> => {
+    await db
+        .prepare(`UPDATE requests SET reviewed = ?, updated_at = ? WHERE id = ?`)
+        .bind(reviewed ? 1 : 0, Date.now(), id)
+        .run()
+}
+
 export const clearQueue = async (
     db: D1Database,
     sessionId: string,
@@ -299,13 +308,12 @@ export const toPublic = (r: SongRequest, deviceId?: string, includeDeviceId = fa
         youtubeId: r.youtubeId,
         title: r.title,
         channel: r.channel,
-        thumbnail: ytThumbnail(r.youtubeId),
         nickname: r.nickname,
         status: r.status,
         source: r.source,
         skipReason: r.skipReason,
+        reviewed: r.reviewed,
         createdAt: r.createdAt,
-        quotaExempt: r.quotaExempt,
         ...(deviceId ? { mine: r.deviceId === deviceId } : {}),
         ...(includeDeviceId ? { deviceId: r.deviceId } : {}),
     }

@@ -2,6 +2,12 @@
     let modalRoot = null
     let toastRoot = null
 
+    const escapeHtml = (str) => {
+        const d = document.createElement("div")
+        d.textContent = str == null ? "" : String(str)
+        return d.innerHTML
+    }
+
     function ensureModalRoot() {
         if (modalRoot) return modalRoot
         modalRoot = document.createElement("div")
@@ -46,30 +52,30 @@
                         const opts = (f.options || [])
                             .map((o) => `
                             <label class="radio-option">
-                                <input type="radio" name="modal-field-${f.id}" value="${o.value}" ${o.value === f.default ? "checked" : ""} />
-                                <span>${o.label}</span>
+                                <input type="radio" name="modal-field-${escapeHtml(f.id)}" value="${escapeHtml(o.value)}" ${o.value === f.default ? "checked" : ""} />
+                                <span>${escapeHtml(o.label)}</span>
                             </label>`)
                             .join("")
                         return `
                         <div class="field-group">
-                            <label>${f.label}</label>
-                            <div class="radio-group" id="modal-field-${f.id}">${opts}</div>
+                            <label>${escapeHtml(f.label)}</label>
+                            <div class="radio-group" id="modal-field-${escapeHtml(f.id)}">${opts}</div>
                         </div>`
                     }
                     return `
-                <label for="modal-field-${f.id}">${f.label}</label>
-                <input type="text" id="modal-field-${f.id}" placeholder="${f.placeholder || ""}" value="${f.default || ""}" />`
+                <label for="modal-field-${escapeHtml(f.id)}">${escapeHtml(f.label)}</label>
+                <input type="text" id="modal-field-${escapeHtml(f.id)}" placeholder="${escapeHtml(f.placeholder || "")}" value="${escapeHtml(f.default || "")}" />`
                 })
                 .join("")
 
             const actionsHtml = actions
-                .map((a, i) => `<button type="button" data-idx="${i}" class="${a.variant || ""}">${a.label}</button>`)
+                .map((a, i) => `<button type="button" data-idx="${i}" class="${escapeHtml(a.variant || "")}">${escapeHtml(a.label)}</button>`)
                 .join("")
 
             root.innerHTML = `
             <div class="modal-backdrop">
-                <div class="modal-box" role="dialog" aria-modal="true" aria-label="${title}">
-                    <div class="modal-title">${title}</div>
+                <div class="modal-box" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+                    <div class="modal-title">${escapeHtml(title)}</div>
                         ${bodyText ? `<div class="modal-body">${bodyText}</div>` : ""}
                         ${fieldsHtml}
                     <div class="modal-actions">${actionsHtml}</div>
@@ -112,8 +118,8 @@
             const root = ensureModalRoot()
             root.innerHTML = `
             <div class="modal-backdrop">
-                <div class="modal-box" role="dialog" aria-modal="true" aria-label="${title}">
-                    <div class="modal-title">${title}</div>
+                <div class="modal-box" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+                    <div class="modal-title">${escapeHtml(title)}</div>
                     <div class="modal-body">${bodyHtml}</div>
                     <div class="modal-actions">
                         <button type="button" data-idx="0" class="primary">เข้าใจแล้ว</button>

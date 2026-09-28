@@ -25,6 +25,7 @@ CREATE TABLE
         updated_at INTEGER NOT NULL,
         played_at INTEGER,
         skipped_at INTEGER,
+        reviewed INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (session_id) REFERENCES sessions (id)
     );
 

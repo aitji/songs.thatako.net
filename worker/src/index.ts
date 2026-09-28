@@ -15,7 +15,7 @@ import {
     findActiveDuplicate as findDupe, ensureSession,
     getRequest, insertRequest as insertReq,
     listMine, maybeAutoAdvance, reorderQueue,
-    requeueRequest, resetSession, setPlayingExclusive, setStatus,
+    requeueRequest, resetSession, reviewRequest, setPlayingExclusive, setStatus,
     toPublic, updateSession
 } from "./db"
 export { MorningRoom } from "./morningRoom"
@@ -97,17 +97,9 @@ export default {
 
             if (url.pathname === "/api/requests/mine" && request.method === "GET") {
                 const deviceId = url.searchParams.get("deviceId")
-                if (!deviceId) return ResError("device_id_required", 400, origin)
-                const [mine, session, quotaUsed] = await Promise.all([
-                    listMine(env.DB, id, deviceId),
-                    ensureSession(env.DB, id),
-                    countActiveRequests(env.DB, id, deviceId),
-                ])
-                return jsonRes({
-                    requests: mine.map((r) => toPublic(r, deviceId)),
-                    quotaUsed,
-                    quotaCap: session.requestCap,
-                }, {}, origin)
+                if (!deviceId || deviceId.length === 0) return ResError("device_id_required", 400, origin)
+                const mine = await listMine(env.DB, id, deviceId.slice(0, 64))
+                return jsonRes({ requests: mine.map((r) => toPublic(r, deviceId.slice(0, 64))) }, {}, origin)
             }
 
             // pr team
@@ -136,6 +128,7 @@ export default {
 const handleCReq = async (request: Request, env: Env, origin?: string): Promise<Response> => {
     const body = (await request.json().catch(() => null)) as any
     if (!body || typeof body.deviceId !== "string" || typeof body.youtubeUrl !== "string") return ResError("device_id_and_youtube_url_required", 400, origin)
+    if (body.deviceId.length === 0 || body.youtubeUrl.length === 0 || body.youtubeUrl.length > 2048) return ResError("invalid_youtube_url", 400, origin)
     const deviceId = body.deviceId.slice(0, 64)
     const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 24) || null : null
 
@@ -175,7 +168,8 @@ const adminLogon = async (request: Request, env: Env, origin?: string): Promise<
     if (!(await isRateLimit(env.DB, ip))) return ResError("too_many_attempts", 429, origin)
 
     const body = (await request.json().catch(() => null)) as any
-    const password = typeof body?.password === "string" ? body.password : ""
+    const rawPassword = body?.password
+    const password = typeof rawPassword === "string" ? rawPassword.slice(0, 256) : ""
     const ok = password.length > 0 && isPass(password, env.ADMIN_PASSWORD)
     await saveLoginDB(env.DB, ip, ok)
     if (!ok) return ResError("invalid_password", 401, origin)
@@ -193,11 +187,14 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
     if (path === "/api/admin/settings" && request.method === "POST") {
         const body = (await request.json().catch(() => ({}))) as any
         const patch: Record<string, unknown> = {}
-        if (typeof body.requestCap === "number") patch.requestCap = Math.max(0, Math.min(20, Math.floor(body.requestCap)))
+        const isFiniteNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v)
+        const isSaneEpoch = (v: unknown): v is number => isFiniteNum(v) && v > 0 && v < 4102444800000 // < year 2100
+
+        if (isFiniteNum(body.requestCap)) patch.requestCap = Math.max(0, Math.min(20, Math.floor(body.requestCap)))
         if (typeof body.requestOpen === "boolean") patch.requestOpen = body.requestOpen
         if (typeof body.autoplay === "boolean") patch.autoplay = body.autoplay
-        if (typeof body.openAt === "number") patch.openAt = body.openAt
-        if (typeof body.closeAt === "number") patch.closeAt = body.closeAt
+        if (isSaneEpoch(body.openAt)) patch.openAt = body.openAt
+        if (isSaneEpoch(body.closeAt)) patch.closeAt = body.closeAt
         if (typeof patch.openAt === "number" || typeof patch.closeAt === "number") {
             const current = await ensureSession(env.DB, sessionId)
             const effectiveOpen = typeof patch.openAt === "number" ? patch.openAt : current.openAt
@@ -218,7 +215,9 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
 
     if (path === "/api/admin/queue/add" && request.method === "POST") {
         const body = (await request.json().catch(() => ({}))) as any
-        const ytID = parseYTID(body?.youtubeUrl ?? "")
+        const rawUrl = typeof body?.youtubeUrl === "string" ? body.youtubeUrl : ""
+        if (!rawUrl || rawUrl.length > 2048) return ResError("invalid_youtube_url", 400, origin)
+        const ytID = parseYTID(rawUrl)
         if (!ytID) return ResError("invalid_youtube_url", 400, origin)
         const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 24) || null : null
         if (await findDupe(env.DB, sessionId, ytID)) return ResError("duplicate_song", 409, origin)
@@ -239,8 +238,10 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
 
     if (path === "/api/admin/queue/reorder" && request.method === "POST") {
         const body = (await request.json().catch(() => ({}))) as any
-        const orderedIds = Array.isArray(body?.orderedIds)
-            ? body.orderedIds.filter((x: unknown): x is string => typeof x === "string")
+        const rawIds = Array.isArray(body?.orderedIds) ? body.orderedIds : null
+        if (!rawIds || rawIds.length === 0 || rawIds.length > 200) return ResError("ordered_ids_required", 400, origin)
+        const orderedIds = rawIds.every((x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length <= 64)
+            ? (rawIds as string[])
             : null
         if (!orderedIds) return ResError("ordered_ids_required", 400, origin)
         await reorderQueue(env.DB, sessionId, orderedIds)
@@ -270,15 +271,30 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         const body = (await request.json().catch(() => ({}))) as any
         const scope = body?.scope as ClearScope
         if (!["played", "queued", "both", "user_quota"].includes(scope)) return ResError("invalid_scope", 400, origin)
-        const deviceId = typeof body?.deviceId === "string" ? body.deviceId.slice(0, 64) : undefined
+        const deviceId = typeof body?.deviceId === "string" && body.deviceId.length > 0 ? body.deviceId.slice(0, 64) : undefined
         await clearQueue(env.DB, sessionId, scope, deviceId)
+        await bumpAndSync(env, sessionId)
+        return jsonRes({ ok: true }, {}, origin)
+    }
+
+    const reviewMatch = path.match(/^\/api\/admin\/queue\/([^/]+)\/review$/)
+    if (reviewMatch && request.method === "POST") {
+        const id = reviewMatch[1]
+        const existing = await getRequest(env.DB, id)
+        if (!existing || existing.sessionId !== sessionId) return ResError("not_found", 404, origin)
+
+        const body = (await request.json().catch(() => ({}))) as any
+        const reviewed = typeof body?.reviewed === "boolean" ? body.reviewed : true
+        await reviewRequest(env.DB, id, reviewed)
         await bumpAndSync(env, sessionId)
         return jsonRes({ ok: true }, {}, origin)
     }
 
     const deviceMatch = path.match(/^\/api\/admin\/device\/([^/]+)\/requests$/)
     if (deviceMatch && request.method === "GET") {
-        const deviceId = decodeURIComponent(deviceMatch[1]).slice(0, 64)
+        let deviceId: string
+        try { deviceId = decodeURIComponent(deviceMatch[1]).slice(0, 64) }
+        catch { return ResError("invalid_device_id", 400, origin) }
         const rows = await listMine(env.DB, sessionId, deviceId)
         return jsonRes({ requests: rows.map((r) => toPublic(r)) }, {}, origin)
     }

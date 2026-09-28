@@ -44,8 +44,6 @@
     const deviceId = getDeviceId()
     let latestSnapshot = null
     let latestMine = []
-    let latestQuotaUsed = 0
-    let latestQuotaCap = null
     let highlightId = null
     let formBusy = false
     let sessionOpenFlag = false
@@ -148,17 +146,8 @@
     async function refreshMine() {
         try {
             const data = await window.api.get(`/api/requests/mine?deviceId=${encodeURIComponent(deviceId)}`)
-            const hadQuota = latestQuotaCap !== null
-            const previousUsed = latestQuotaUsed
-
             latestMine = data.requests
-            latestQuotaUsed = data.quotaUsed
-            latestQuotaCap = data.quotaCap
             renderMineUI()
-
-            if (hadQuota && latestQuotaUsed < previousUsed) {
-                window.ui.showToast("โควตาของคุณถูกรีเซ็ตแล้ว ขอเพลงเพิ่มได้เลย")
-            }
         } catch { }
     }
 
@@ -184,7 +173,7 @@
         capNote.textContent = `วันนี้ขอเพลงได้ไม่เกิน ${snap.session.requestCap} เพลงต่อคน`
 
         nowPlayingEl.innerHTML = snap.nowPlaying
-            ? `<img class="thumb" src="${snap.nowPlaying.thumbnail}" alt="" loading="lazy" /><div>${escapeHtml(snap.nowPlaying.title || snap.nowPlaying.youtubeId)}</div>`
+            ? `<img class="thumb" src="${escapeHtml(window.ytThumbnail(snap.nowPlaying.youtubeId))}" alt="" loading="lazy" /><div>${escapeHtml(snap.nowPlaying.title || snap.nowPlaying.youtubeId)}</div>`
             : '<p class="empty-hint">ยังไม่มีเพลงกำลังเปิด</p>'
 
         const mine = myIdSet()
@@ -196,7 +185,7 @@
             row.className = `queue-row${isMine ? " queue-row-mine" : ""}`
             row.innerHTML = `
                 <span class="queue-index">${i + 1}</span>
-                <span class="queue-title">${escapeHtml(q.title || q.youtubeId)}${isMine ? '<span class="you-chip">คุณ</span>' : ""}</span>
+                <span class="queue-title">${escapeHtml(q.title || q.youtubeId)}${isMine ? '<span class="you-chip">คุณ</span>' : ""}${q.reviewed ? '<span class="reviewed-dot" title="ผ่านการรีวิวแล้ว"></span>' : ""}</span>
                 <span class="queue-nick">${escapeHtml(q.nickname || "ไม่ระบุชื่อ")}</span>`
             queueList.appendChild(row)
         })
@@ -213,7 +202,7 @@
                 .slice(0, 5)
                 .map((p) => `
                 <div class="recent-played-row">
-                    <img class="thumb" src="${p.thumbnail}" alt="" loading="lazy" style="width:40px;height:22px;" />
+                    <img class="thumb" src="${escapeHtml(window.ytThumbnail(p.youtubeId))}" alt="" loading="lazy" style="width:40px;height:22px;" />
                     <span>${escapeHtml(p.title || p.youtubeId)}</span>
                 </div>`
                 ).join("")
@@ -253,17 +242,19 @@
     }
 
     function renderQuota() {
-        const cap = latestQuotaCap !== null ? latestQuotaCap : (latestSnapshot ? latestSnapshot.session.requestCap : null)
-        const used = latestQuotaUsed
+        const cap = latestSnapshot ? latestSnapshot.session.requestCap : null
+        const used = latestMine.filter((r) => r.status === "queued" || r.status === "playing" || r.status === "played").length
         if (cap === null) return quotaSummary.innerHTML = '<div class="skeleton skeleton-line w-40"></div>'
 
         const pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0
+        const shortId = deviceId.replace(/^dev_/, "").slice(0, 8)
         quotaSummary.innerHTML = `
         <div class="quota-row">
             <span>${used} / ${cap} เพลง</span>
             <div class="quota-track"><div class="quota-fill" style="width:${pct}%"></div></div>
         </div>
-        <div class="hint" style="margin-top:10px">เพลงที่ถูกข้ามหรือซ้ำจะไม่นับรวมในโควตา</div>`
+        <div class="hint" style="margin-top:10px">เพลงที่ถูกข้ามหรือซ้ำจะไม่นับรวมในโควตา</div>
+        <div class="device-id-row"><span class="device-id-label">เลขอุปกรณ์: </span><span class="device-id-value">${shortId}</span></div>`
     }
 
     function renderMineCard(r) {
@@ -278,9 +269,9 @@
         subParts.push(relTime(r.createdAt))
 
         div.innerHTML = `
-        <img class="thumb" src="${r.thumbnail}" alt="" loading="lazy" />
+        <img class="thumb" src="${escapeHtml(window.ytThumbnail(r.youtubeId))}" alt="" loading="lazy" />
         <div style="flex:1; min-width:0;">
-            <div class="status-song">${escapeHtml(r.title || r.youtubeId)}</div>
+            <div class="status-song">${escapeHtml(r.title || r.youtubeId)}${r.reviewed ? '<span class="reviewed-dot" title="ผ่านการรีวิวแล้ว"></span>' : ""}</div>
             ${statusBadgeHtml(r.status)}
             <div class="status-sub">${subParts.join(" · ")}</div>
         </div>`
@@ -294,6 +285,15 @@
         refreshMine()
     }
 
+    function onInit() {
+        const chip = $("admin-device-chip")
+        if (chip) {
+            const rawId = localStorage.getItem("msq_device_id") || ""
+            const short = rawId.replace(/^dev_/, "").slice(0, 8)
+            if (short) chip.textContent = short
+        }
+    }
+
     window.api.get("/api/state").then(onSnapshot).catch(() => { })
     window.connectEvents(onSnapshot, {
         onDisconnected: () => window.ui.showToast("การเชื่อมต่อขาดหาย กำลังลองใหม่...", "error"),
@@ -301,4 +301,5 @@
     }, { deviceId })
 
     setInterval(applyLiveStatus, 30000)
+    onInit()
 })()

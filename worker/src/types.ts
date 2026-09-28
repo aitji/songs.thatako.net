@@ -23,6 +23,7 @@ export interface SongRequest {
     position: number | null
     skipReason: string | null
     quotaExempt: boolean
+    reviewed: boolean
     createdAt: number
     updatedAt: number
     playedAt: number | null
@@ -44,15 +45,14 @@ export interface PublicRequest {
     youtubeId: string
     title: string | null
     channel: string | null
-    thumbnail: string
     nickname: string | null
     status: RequestStatus
     source: RequestSource
     skipReason: string | null
+    reviewed: boolean
     createdAt: number
     mine?: boolean
     deviceId?: string
-    quotaExempt?: boolean
 }
 
 export interface StateSnapshot {

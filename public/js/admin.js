@@ -16,6 +16,8 @@
         trash: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         check: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 12 L10 18 L20 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         requeue: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 12a8 8 0 1 1 3 6.2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M4 17v-5h5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        approve: '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        preview: '<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>',
     }
 
     const $ = (e) => document.getElementById(e)
@@ -114,6 +116,12 @@
     const onAuthed = () => {
         loginSection.style.display = "none"
         panelSection.style.display = "block"
+        const chip = $("admin-device-chip")
+        if (chip) {
+            const rawId = localStorage.getItem("msq_device_id") || ""
+            const short = rawId.replace(/^dev_/, "").slice(0, 8)
+            if (short) chip.textContent = short
+        }
         window.api.get("/api/state").then(renderSnapshot).catch(() => { })
         window.connectEvents(renderSnapshot, {
             onDisconnected: () => window.ui.showToast("การเชื่อมต่อขาดหาย กำลังลองใหม่...", "error"),
@@ -276,6 +284,29 @@
         await window.api.post(`/api/admin/queue/${id}/skip`, { reason: result.values.reason || null });
     }
 
+    const toggleReview = async (id, currentReviewed) => {
+        await window.api.post(`/api/admin/queue/${id}/review`, { reviewed: !currentReviewed })
+    }
+
+    const YT_ID_RE = /^[a-zA-Z0-9_-]{11}$/
+    const togglePreview = (id, youtubeId) => {
+        const existing = document.getElementById(`preview-${id}`)
+        if (existing) { existing.remove(); return }
+        if (!YT_ID_RE.test(youtubeId || "")) return
+        const row = document.querySelector(`[data-id="${CSS.escape(id)}"]`)
+        if (!row) return
+        const preview = document.createElement("div")
+        preview.id = `preview-${id}`
+        preview.className = "song-preview-embed"
+        const iframe = document.createElement("iframe")
+        iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1`
+        iframe.setAttribute("frameborder", "0")
+        iframe.setAttribute("allow", "autoplay; encrypted-media")
+        iframe.setAttribute("allowfullscreen", "")
+        preview.appendChild(iframe)
+        row.after(preview)
+    }
+
     const playNow = async (id) => await window.api.post(`/api/admin/queue/${id}/play`)
     const markPlayed = async (id) => await window.api.post(`/api/admin/queue/${id}/played`)
     const requeue = async (id) => await window.api.post(`/api/admin/queue/${id}/requeue`)
@@ -355,7 +386,7 @@
         }
         return `
         <div class="${cls}">
-            <img class="thumb" src="${r.thumbnail}" alt="" loading="lazy" />
+            <a href="https://www.youtube.com/watch?v=${encodeURIComponent(r.youtubeId)}" target="_blank" rel="noopener" class="thumb-link"><img class="thumb" src="${escapeHtml(window.ytThumbnail(r.youtubeId))}" alt="" loading="lazy" /></a>
             <div class="admin-row-body">
               <div class="admin-row-title">${escapeHtml(r.title || r.youtubeId)}${badge}</div>
               <div class="admin-row-sub">${escapeHtml(r.nickname || "ไม่ระบุชื่อ")}${dev ? ` · <span class="admin-row-device" data-device="${escapeHtml(r.deviceId)}">${escapeHtml(dev)}</span>` : ""}</div>
@@ -373,12 +404,14 @@
         const dev = shortDevice(q.deviceId)
         div.innerHTML = `
         <span class="drag-handle" aria-hidden="true">⋮⋮</span>
-        <img class="thumb" src="${q.thumbnail}" alt="" loading="lazy" />
+        <a href="https://www.youtube.com/watch?v=${encodeURIComponent(q.youtubeId)}" target="_blank" rel="noopener" class="thumb-link"><img class="thumb" src="${escapeHtml(window.ytThumbnail(q.youtubeId))}" alt="" loading="lazy" /></a>
         <div class="admin-row-body">
             <div class="admin-row-title">${escapeHtml(q.title || q.youtubeId)}${badge}</div>
             <div class="admin-row-sub">${escapeHtml(q.nickname || "ไม่ระบุชื่อ")}${dev ? ` · <span class="admin-row-device" data-device="${escapeHtml(q.deviceId)}">${escapeHtml(dev)}</span>` : ""}</div>
         </div>
         <div class="admin-row-actions">
+            <button class="row-btn preview-btn" data-action="preview" data-id="${q.id}" data-youtube="${escapeHtml(q.youtubeId)}" title="ดูตัวอย่าง" aria-label="ดูตัวอย่าง">${ICONS.preview}</button>
+            <button class="row-btn ${q.reviewed ? 'approve-btn approved' : 'approve-btn'}" data-action="approve" data-id="${q.id}" data-reviewed="${q.reviewed ? '1' : '0'}" title="${q.reviewed ? 'ยกเลิกรีวิว' : 'ผ่านรีวิว'}" aria-label="${q.reviewed ? 'ยกเลิกรีวิว' : 'ผ่านรีวิว'}">${ICONS.approve}</button>
             <button class="row-btn" data-action="play" data-id="${q.id}" title="เล่นเพลงนี้" aria-label="เล่นเพลงนี้">${ICONS.play}</button>
             <button class="row-btn" data-action="up" data-id="${q.id}" title="เลื่อนขึ้น" aria-label="เลื่อนขึ้น">${ICONS.up}</button>
             <button class="row-btn" data-action="down" data-id="${q.id}" title="เลื่อนลง" aria-label="เลื่อนลง">${ICONS.down}</button>
@@ -411,6 +444,8 @@
         btn.onclick = () => {
             const id = btn.dataset.id
             const action = btn.dataset.action
+            if (action === "preview") return togglePreview(id, btn.dataset.youtube)
+            if (action === "approve") return toggleReview(id, btn.dataset.reviewed === "1")
             if (action === "up") return move(id, -1)
             if (action === "down") return move(id, 1)
             if (action === "play") return playNow(id)
@@ -422,7 +457,7 @@
     })
 
     const openDeviceModal = async (deviceId) => {
-        window.ui.openInfoModal(`อุปกรณ์ ${escapeHtml(shortDevice(deviceId))}`, '<p class="empty-hint">กำลังโหลด...</p>')
+        window.ui.openInfoModal(`อุปกรณ์ ${shortDevice(deviceId)}`, '<p class="empty-hint">กำลังโหลด...</p>')
         const modalBody = document.querySelector("#ui-modal-root .modal-body")
 
         let data
@@ -439,12 +474,10 @@
         <div class="device-panel-actions">
             <button type="button" class="btn-danger-outline" data-reset-quota="${escapeHtml(deviceId)}">รีเซ็ตโควตาของผู้ใช้นี้</button>
         </div>${rowsHtml}`
-        modalBody.querySelector("[data-reset-quota]").addEventListener("click", async (e) => {
+        modalBody.querySelector("[data-reset-quota]").addEventListener("click", async () => {
             try {
-                console.log(deviceId, e.currentTarget.dataset.resetQuota ?? 'unknow')
-
                 const result = await window.ui.openModal({
-                    title: `รีเซ็ตโควตาของผู้ ${escapeHtml(deviceId)}`,
+                    title: `รีเซ็ตโควตาของผู้ ${deviceId}`,
                     bodyText: '',
                     fields: [],
                     actions: [

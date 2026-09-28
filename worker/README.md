@@ -20,5 +20,8 @@ cloudflare worker
 * https://api.songs.thatako.net/api/admin/queue/play (POST)
 * https://api.songs.thatako.net/api/admin/queue/played (POST)
 * https://api.songs.thatako.net/api/admin/queue/delete (POST)
+* https://api.songs.thatako.net/api/admin/queue/clear (POST)
+* https://api.songs.thatako.net/api/admin/queue/review (POST)
+* https://api.songs.thatako.net/api/admin/queue/device/dev_[DEVICE_ID]/requests (GET)
 
 deploy with `cd worker; npm run deploy`

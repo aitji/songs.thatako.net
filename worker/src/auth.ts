@@ -41,7 +41,8 @@ export const saveLoginDB = async (db: D1Database, ip: string, success: boolean):
     else await db.prepare("UPDATE login_attempts SET count = count + 1 WHERE ip = ?").bind(ip).run()
 }
 
-export const isPass = (inp: string, exp: string): boolean => {
+export const isPass = (inp: unknown, exp: string): boolean => {
+    if (typeof inp !== "string") return false
     if (inp.length !== exp.length) return false
     let result = 0
     for (let i = 0; i < inp.length; i++) result |= inp.charCodeAt(i) ^ exp.charCodeAt(i)
