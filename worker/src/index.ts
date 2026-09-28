@@ -98,8 +98,16 @@ export default {
             if (url.pathname === "/api/requests/mine" && request.method === "GET") {
                 const deviceId = url.searchParams.get("deviceId")
                 if (!deviceId) return ResError("device_id_required", 400, origin)
-                const mine = await listMine(env.DB, id, deviceId)
-                return jsonRes({ requests: mine.map((r) => toPublic(r, deviceId)) }, {}, origin)
+                const [mine, session, quotaUsed] = await Promise.all([
+                    listMine(env.DB, id, deviceId),
+                    ensureSession(env.DB, id),
+                    countActiveRequests(env.DB, id, deviceId),
+                ])
+                return jsonRes({
+                    requests: mine.map((r) => toPublic(r, deviceId)),
+                    quotaUsed,
+                    quotaCap: session.requestCap,
+                }, {}, origin)
             }
 
             // pr team

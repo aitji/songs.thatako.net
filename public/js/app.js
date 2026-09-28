@@ -44,6 +44,8 @@
     const deviceId = getDeviceId()
     let latestSnapshot = null
     let latestMine = []
+    let latestQuotaUsed = 0
+    let latestQuotaCap = null
     let highlightId = null
     let formBusy = false
     let sessionOpenFlag = false
@@ -146,8 +148,17 @@
     async function refreshMine() {
         try {
             const data = await window.api.get(`/api/requests/mine?deviceId=${encodeURIComponent(deviceId)}`)
+            const hadQuota = latestQuotaCap !== null
+            const previousUsed = latestQuotaUsed
+
             latestMine = data.requests
+            latestQuotaUsed = data.quotaUsed
+            latestQuotaCap = data.quotaCap
             renderMineUI()
+
+            if (hadQuota && latestQuotaUsed < previousUsed) {
+                window.ui.showToast("โควตาของคุณถูกรีเซ็ตแล้ว ขอเพลงเพิ่มได้เลย")
+            }
         } catch { }
     }
 
@@ -242,8 +253,8 @@
     }
 
     function renderQuota() {
-        const cap = latestSnapshot ? latestSnapshot.session.requestCap : null
-        const used = latestMine.filter((r) => r.status === "queued" || r.status === "playing" || r.status === "played").length
+        const cap = latestQuotaCap !== null ? latestQuotaCap : (latestSnapshot ? latestSnapshot.session.requestCap : null)
+        const used = latestQuotaUsed
         if (cap === null) return quotaSummary.innerHTML = '<div class="skeleton skeleton-line w-40"></div>'
 
         const pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0

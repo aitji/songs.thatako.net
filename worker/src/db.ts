@@ -305,6 +305,7 @@ export const toPublic = (r: SongRequest, deviceId?: string, includeDeviceId = fa
         source: r.source,
         skipReason: r.skipReason,
         createdAt: r.createdAt,
+        quotaExempt: r.quotaExempt,
         ...(deviceId ? { mine: r.deviceId === deviceId } : {}),
         ...(includeDeviceId ? { deviceId: r.deviceId } : {}),
     }

@@ -52,6 +52,7 @@ export interface PublicRequest {
     createdAt: number
     mine?: boolean
     deviceId?: string
+    quotaExempt?: boolean
 }
 
 export interface StateSnapshot {
