@@ -342,3 +342,39 @@ export const buildSnapshot = async (db: D1Database, sessionId: string, version: 
         played: played.map((r) => toPublic(r, undefined, true)),
     }
 }
+
+
+export interface PurgeResult {
+    cutoff: string
+    dryRun: boolean
+    requests: number
+    sessions: number
+    loginAttempts: number
+}
+
+export const purgeOldData = async (db: D1Database, retentionDays: number, dryRun = false): Promise<PurgeResult> => {
+    const now = Date.now()
+    const cutoff = thDateStr(new Date(now - retentionDays * 86_400_000))
+    const loginCutoff = now - 24 * 60 * 60 * 1000
+
+    const count = async (sql: string, ...args: unknown[]): Promise<number> => {
+        const row = await db.prepare(sql).bind(...args).first<{ n: number }>()
+        return row?.n ?? 0
+    }
+
+    const result: PurgeResult = {
+        cutoff,
+        dryRun,
+        requests: await count(`SELECT COUNT(*) AS n FROM requests WHERE session_id < ?`, cutoff),
+        sessions: await count(`SELECT COUNT(*) AS n FROM sessions WHERE id < ?`, cutoff),
+        loginAttempts: await count(`SELECT COUNT(*) AS n FROM login_attempts WHERE window_start < ?`, loginCutoff),
+    }
+    if (dryRun) return result
+
+    await db.batch([
+        db.prepare(`DELETE FROM requests WHERE session_id < ?`).bind(cutoff),
+        db.prepare(`DELETE FROM sessions WHERE id < ?`).bind(cutoff),
+        db.prepare(`DELETE FROM login_attempts WHERE window_start < ?`).bind(loginCutoff),
+    ])
+    return result
+}

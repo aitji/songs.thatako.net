@@ -12,6 +12,8 @@ cloudflare worker
 * https://api.songs.thatako.net/api/admin/me (GET)
 * https://api.songs.thatako.net/api/admin/logout (POST)
 
+* https://api.songs.thatako.net/api/cron/purge (POST)
+* 
 * https://api.songs.thatako.net/api/admin/settings (POST)
 * https://api.songs.thatako.net/api/admin/settings/reset (POST)
 * https://api.songs.thatako.net/api/admin/queue/add (POST)

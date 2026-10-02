@@ -3,6 +3,7 @@ export interface Env {
     MORNING_ROOM: DurableObjectNamespace
     ADMIN_PASSWORD: string
     SESSION_SECRET: string
+    CRON_SECRET?: string
     ALLOWED_ORIGIN?: string
 }
 

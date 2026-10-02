@@ -16,7 +16,7 @@ import {
     getRequest, insertRequest as insertReq,
     listMine, maybeAutoAdvance, reorderQueue,
     requeueRequest, resetSession, reviewRequest, setPlayingExclusive, setStatus,
-    toPublic, updateSession
+    purgeOldData, toPublic, updateSession
 } from "./db"
 export { MorningRoom } from "./morningRoom"
 
@@ -102,6 +102,9 @@ export default {
                 return jsonRes({ requests: mine.map((r) => toPublic(r, deviceId.slice(0, 64))) }, {}, origin)
             }
 
+            // scheduled purge
+            if (url.pathname === "/api/cron/purge" && request.method === "POST") return handlePurge(request, env, origin)
+
             // pr team
             if (url.pathname === "/api/admin/login" && request.method === "POST") return adminLogon(request, env, origin)
             if (url.pathname === "/api/admin/me" && request.method === "GET") return jsonRes({ authed: await isAdmin(request, env) }, {}, origin)
@@ -123,6 +126,23 @@ export default {
         }
     },
 
+}
+
+const handlePurge = async (request: Request, env: Env, origin?: string): Promise<Response> => {
+    const secret = env.CRON_SECRET
+    if (!secret) return ResError("cron_disabled", 503, origin)
+
+    const auth = request.headers.get("Authorization") ?? ""
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : ""
+    if (!token || !isPass(token, secret)) return ResError("unauthorized", 401, origin)
+
+    const body = (await request.json().catch(() => ({}))) as any
+    const raw = body?.retentionDays
+    const retentionDays = raw === undefined ? 7 : raw
+    if (!Number.isInteger(retentionDays) || retentionDays < 0 || retentionDays > 365) return ResError("invalid_retention_days", 400, origin)
+
+    const result = await purgeOldData(env.DB, retentionDays, body?.dryRun === true)
+    return jsonRes({ ok: true, retentionDays, ...result }, {}, origin)
 }
 
 const handleCReq = async (request: Request, env: Env, origin?: string): Promise<Response> => {

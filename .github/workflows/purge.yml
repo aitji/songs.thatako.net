@@ -1,0 +1,47 @@
+name: purge old data
+
+on:
+    schedule:
+        - cron: "0 17 * * 0"
+    workflow_dispatch:
+        inputs:
+            retention_days:
+                description: "keep this many days of history (0=keep only today)"
+                required: false
+                default: "7"
+            dry_run:
+                description: "only count what would be deleted"
+                type: boolean
+                default: true
+
+concurrency:
+    group: purge-old-data
+    cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+    purge:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        env:
+            API_URL: https://api.songs.thatako.net
+            CRON_SECRET: ${{ secrets.CRON_SECRET }}
+            RETENTION_DAYS: ${{ inputs.retention_days || '7' }}
+            DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        steps:
+            - name: Check secret
+              run: |
+                  [ -n "$CRON_SECRET" ] || { echo "::error::CRON_SECRET no secret smh"; exit 1; }
+
+            - name: Call purge endpoint
+              run: |
+                  body=$(jq -n --argjson d "$RETENTION_DAYS" --argjson r "$DRY_RUN" '{retentionDays:$d, dryRun:$r}')
+                  curl --fail-with-body --silent --show-error --max-time 60 \
+                    --retry 3 --retry-delay 10 --retry-all-errors \
+                    -X POST "$API_URL/api/cron/purge" \
+                    -H "Authorization: Bearer $CRON_SECRET" \
+                    -H "Content-Type: application/json" \
+                    -d "$body" | tee result.json
+                  echo
+                  jq -r '"cutoff=\(.cutoff) dryRun=\(.dryRun) requests=\(.requests) sessions=\(.sessions) loginAttempts=\(.loginAttempts)"' result.json >> "$GITHUB_STEP_SUMMARY"
