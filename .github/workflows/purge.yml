@@ -18,30 +18,38 @@ concurrency:
     group: purge-old-data
     cancel-in-progress: false
 
-permissions: {}
+permissions:
+    contents: read
 
 jobs:
     purge:
         runs-on: ubuntu-latest
-        timeout-minutes: 5
+        timeout-minutes: 10
+        defaults:
+            run:
+                working-directory: worker
         env:
-            API_URL: https://api.songs.thatako.net
-            CRON_SECRET: ${{ secrets.CRON_SECRET }}
+            CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+            CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
             RETENTION_DAYS: ${{ inputs.retention_days || '7' }}
-            DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+            DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run ||
+                false}}
         steps:
             - name: Check secret
               run: |
-                  [ -n "$CRON_SECRET" ] || { echo "::error::CRON_SECRET no secret smh"; exit 1; }
+                  [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing"; exit 1; }
+                  [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing"; exit 1; }
 
-            - name: Call purge endpoint
-              run: |
-                  body=$(jq -n --argjson d "$RETENTION_DAYS" --argjson r "$DRY_RUN" '{retentionDays:$d, dryRun:$r}')
-                  curl --fail-with-body --silent --show-error --max-time 60 \
-                    --retry 3 --retry-delay 10 --retry-all-errors \
-                    -X POST "$API_URL/api/cron/purge" \
-                    -H "Authorization: Bearer $CRON_SECRET" \
-                    -H "Content-Type: application/json" \
-                    -d "$body" | tee result.json
-                  echo
-                  jq -r '"cutoff=\(.cutoff) dryRun=\(.dryRun) requests=\(.requests) sessions=\(.sessions) loginAttempts=\(.loginAttempts)"' result.json >> "$GITHUB_STEP_SUMMARY"
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: worker/package-lock.json
+
+            - name: install wrangler
+              run: npm ci
+
+            - name: purge D1
+              run: node /.github/scripts/purge.mjs
