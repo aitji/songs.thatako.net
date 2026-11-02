@@ -35,12 +35,13 @@ jobs:
             DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run ||
                 false}}
         steps:
+            - uses: actions/checkout@v6
+
             - name: Check secret
+              working-directory: .
               run: |
                   [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing"; exit 1; }
                   [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing"; exit 1; }
-
-            - uses: actions/checkout@v6
 
             - uses: actions/setup-node@v4
               with:
@@ -52,4 +53,4 @@ jobs:
               run: npm ci
 
             - name: purge D1
-              run: node /.github/scripts/purge.mjs
+              run: node ../.github/scripts/purge.mjs
