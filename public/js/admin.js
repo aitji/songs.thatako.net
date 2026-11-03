@@ -333,7 +333,7 @@
     const devChip = (r) => r.source === "admin" || !r.deviceId
         ? '<span class="chip pr">PR เพิ่มเอง</span>'
         : `<button type="button" class="chip dev" data-device="${esc(r.deviceId)}" title="ดูคำขอทั้งหมดของอุปกรณ์นี้">${esc(shortDevice(r.deviceId))}</button>`
-    const metaLine = (r, extra = "") => `<span class="who">${esc(whoOf(r))}</span>${devChip(r)}${extra}`
+    const metaLine = (r, extra = "") => `<span class="who">${esc(whoOf(r))}</span> ${devChip(r)}${extra}`
 
     function renderTop(card, r) {
         const open = openPreviewId === r.id
@@ -563,7 +563,7 @@
                     <a class="thumb-link" href="${watchUrl(r.youtubeId)}" target="_blank" rel="noopener"><img class="thumb" style="width:72px" src="${esc(window.ytThumbnail(r.youtubeId))}" alt="" /></a>
                     <div class="row-body">
                         <div class="row-title" style="color:var(--text)">${esc(r.title || r.youtubeId)}</div>
-                        <div class="row-meta"><span class="who">${esc(whoOf(r))}</span>${agoSpan(r.createdAt)}</div>
+                        <div class="row-meta"><span class="who">${esc(whoOf(r))} </span>${agoSpan(r.createdAt)}</div>
                         <div class="status-line2"><span class="status-badge st-${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.skipReason ? esc(r.skipReason) : ""}</div>
                     </div>
                 </div>

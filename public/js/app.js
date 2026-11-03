@@ -279,7 +279,7 @@
             title: "แก้ไขคำขอ",
             headerHtml: `<img class="thumb" src="${esc(window.ytThumbnail(r.youtubeId))}" alt="" /><div style="min-width:0"><div class="mh-title">${esc(r.title || r.youtubeId)}</div><div class="mh-sub">${esc(STATUS_LABEL[r.status] || r.status)}</div></div>`,
             fields: [
-                { id: "nickname", type: "text", label: "ชื่อที่ PR จะอ่านให้ฟัง", default: r.nickname || "", maxlength: 24, placeholder: "ไม่ใส่ก็ได้" },
+                { id: "nickname", type: "text", label: "ชื่อเล่น", default: r.nickname || "", maxlength: 24, placeholder: "ไม่ใส่ก็ได้" },
                 { id: "note", type: "textarea", label: "ข้อความถึง PR", default: r.note || "", maxlength: 120, placeholder: "เช่น ขอให้เปิดหลังประกาศเขต", hint: "เห็นเฉพาะ PR" },
             ],
             actions: [{ label: "ยกเลิก", value: "cancel" }, { label: "บันทึก", value: "save", variant: "primary" }],
@@ -346,7 +346,7 @@
                 <div class="row-body">
                     <div class="row-title">${titleLink(q)}</div>
                     <div class="row-meta">
-                        <span class="who">${esc(whoOf(q))}</span>${agoSpan(q.createdAt)}
+                        <span class="who">${esc(whoOf(q))}</span> ${agoSpan(q.createdAt)}
                         ${mine ? '<span class="chip you">คุณ</span>' : ""}${reviewedChip(q)}
                         ${mine ? `<button type="button" class="edit-link" data-manage="${esc(q.id)}">${icon("pencil", 13)}แก้ไข</button>` : ""}
                     </div>
@@ -360,7 +360,7 @@
                 ${thumbLink(p)}
                 <div class="row-body">
                     <div class="row-title">${titleLink(p)}</div>
-                    <div class="row-meta"><span class="who">${esc(whoOf(p))}</span>${p.playedAt ? agoSpan(p.playedAt, "played") : agoSpan(p.createdAt)}</div>
+                    <div class="row-meta"><span class="who">${esc(whoOf(p))}</span> ${p.playedAt ? agoSpan(p.playedAt, "played") : agoSpan(p.createdAt)}</div>
                 </div>
             </div>
         </div>`
@@ -456,7 +456,7 @@
                 ${thumbLink(r)}
                 <div class="row-body">
                     <div class="row-title">${titleLink(r)}</div>
-                    <div class="row-meta"><span class="who">${esc(whoOf(r))}${agoSpan(r.createdAt)}</div>
+                    <div class="row-meta"><span class="who">${esc(whoOf(r))} ${agoSpan(r.createdAt)}</div>
                     <div class="status-line2">${bits.join("")}</div>
                 </div>
             </div>
