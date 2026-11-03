@@ -365,7 +365,7 @@
                 ${titleAnchor(r)}
             </div>
             <div class="s-meta">${metaLine(r)}</div>
-            ${r.note ? `<div style="margin-left:38px">${noteStrip(r.note)}</div>` : ""}
+            ${r.note ? `<div>${noteStrip(r.note)}</div>` : ""}
             <button type="button" class="btn-play" data-act="play">${icon("play", 18)}เล่นเลย</button>`
     }
 
