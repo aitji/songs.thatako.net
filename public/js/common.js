@@ -18,7 +18,7 @@
         return `${Math.floor(min / 60)} ชั่วโมงที่แล้ว`
     }
 
-    const PREFIX = { requested: "ขอ", played: "เล่น", plain: "" }
+    const PREFIX = { requested: "ขอเมื่อ", played: "เล่นเมื่อ", plain: "" }
     const agoLabel = (kind, epoch) => {
         const t = agoText(epoch)
         const pre = PREFIX[kind] ?? ""
