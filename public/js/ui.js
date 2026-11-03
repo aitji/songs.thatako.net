@@ -171,7 +171,7 @@
 
     const confirmLeave = ({ youtubeId, title }) => openModal({
         title: "ไปดูที่ YouTube?",
-        bodyHtml: `<p>${title ? `“${esc(title)}” ` : "เพลงนี้ "}จะเปิดที่ YouTube ในแท็บใหม่ หน้านี้ยังอยู่ที่เดิม</p>`,
+        bodyHtml: `<p>${title ? `"${esc(title)}" ` : "เพลงนี้ "}จะเปิดที่ YouTube ในแท็บใหม่ หน้านี้ยังอยู่ที่เดิม</p>`,
         actions: [
             { label: "อยู่ที่นี่", value: "stay" },
             { label: "เปิด YouTube", value: "go", variant: "primary", href: window.fmt.watchUrl(youtubeId) },

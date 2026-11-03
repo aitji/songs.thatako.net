@@ -87,9 +87,9 @@
     const openHelp = () => window.ui.openInfoModal(
         "วิธีใช้งานห้องควบคุม",
         `<p><strong>การ์ดเพลงในคิว</strong> ปุ่มซ้าย ⋮⋮ ลากเพื่อสลับลำดับ (ลากได้ทั้งเมาส์และนิ้ว) และ ▲▼ เลื่อนทีละขั้น</p>
-         <p>แตะรูปเพื่อดูตัวอย่าง (เปิดได้ทีละเพลง) แตะชื่อเพลงเพื่อเปิดใน YouTube วงกลมหน้าชื่อคือ “ตรวจแล้ว” ใช้ทำเครื่องหมายว่าฟังแล้วผ่าน</p>
+         <p>แตะรูปเพื่อดูตัวอย่าง (เปิดได้ทีละเพลง) แตะชื่อเพลงเพื่อเปิดใน YouTube วงกลมหน้าชื่อคือ "ตรวจแล้ว" ใช้ทำเครื่องหมายว่าฟังแล้วผ่าน</p>
          <p><strong>เล่นเลย</strong> ตั้งเพลงนี้เป็นเพลงที่กำลังเปิด ถ้ามีเพลงอื่นเปิดอยู่ เพลงนั้นจะถูกย้ายไปท้ายคิว</p>
-         <p><strong>✕ มุมขวาบน</strong> เลือกได้ว่าจะ “ข้ามเพลง” (ผู้ขอเห็นสถานะและเหตุผล) หรือ “ลบทิ้ง” (หายไปจากรายการของผู้ขอ)</p>
+         <p><strong>✕ มุมขวาบน</strong> เลือกได้ว่าจะ "ข้ามเพลง" (ผู้ขอเห็นสถานะและเหตุผล) หรือ "ลบทิ้ง" (หายไปจากรายการของผู้ขอ)</p>
          <p><strong>แถบเหลือง</strong> คือข้อความที่ผู้ขอฝากถึง PR คนอื่นไม่เห็น</p>
          <p><strong>แท็บประวัติ</strong> ดูเพลงที่เล่นแล้ว เปิดซ้ำหรือย้ายกลับเข้าคิวได้</p>`
     )
@@ -278,7 +278,7 @@
     const playNow = async (r) => {
         const prev = latestSnapshot && latestSnapshot.nowPlaying
         const ok = await act(() => post(`/api/admin/queue/${encodeURIComponent(r.id)}/play`))
-        if (ok !== undefined && prev && prev.id !== r.id) window.ui.showToast(`เปิด “${clip(r.title || r.youtubeId)}” แล้ว เพลง “${clip(prev.title || prev.youtubeId)}” ย้ายไปท้ายคิว`)
+        if (ok !== undefined && prev && prev.id !== r.id) window.ui.showToast(`เปิด "${clip(r.title || r.youtubeId)}" แล้ว เพลง "${clip(prev.title || prev.youtubeId)}" ย้ายไปท้ายคิว`)
     }
     const markPlayed = (r) => act(() => post(`/api/admin/queue/${encodeURIComponent(r.id)}/played`))
     const requeue = async (r) => {
@@ -333,7 +333,7 @@
     const devChip = (r) => r.source === "admin" || !r.deviceId
         ? '<span class="chip pr">PR เพิ่มเอง</span>'
         : `<button type="button" class="chip dev" data-device="${esc(r.deviceId)}" title="ดูคำขอทั้งหมดของอุปกรณ์นี้">${esc(shortDevice(r.deviceId))}</button>`
-    const metaLine = (r, extra = "") => `<span class="who">${esc(whoOf(r))}</span><span class="sep">–</span>${devChip(r)}${extra}`
+    const metaLine = (r, extra = "") => `<span class="who">${esc(whoOf(r))}</span>${devChip(r)}${extra}`
 
     function renderTop(card, r) {
         const open = openPreviewId === r.id
@@ -398,20 +398,20 @@
         onairPanel.classList.toggle("idle", !r)
         if (!r) {
             onairPanel.innerHTML = `
-                <div class="onair-head"><span class="onair-dot"></span><span>กำลังเปิดอยู่</span></div>
-                <div class="onair-idle-text">ยังไม่มีเพลงกำลังเปิด<br>${latestSnapshot && latestSnapshot.session.autoplay ? "เมื่อมีเพลงในคิว ระบบจะดึงเพลงแรกมาเปิดให้เอง" : "เลือกเพลงจากคิวแล้วกด “เล่นเลย”"}</div>`
+                <div class="onair-head"><span>กำลังเปิดอยู่</span></div>
+                <div class="onair-idle-text">ยังไม่มีเพลงกำลังเปิด<br>${latestSnapshot && latestSnapshot.session.autoplay ? "เมื่อมีเพลงในคิว ระบบจะดึงเพลงแรกมาเปิดให้เอง" : 'เลือกเพลงจากคิวแล้วกด "เล่นเลย"'}</div>`
             return
         }
         onairPanel.innerHTML = `
-            <div class="onair-head"><span class="onair-dot"></span><span>กำลังเปิดอยู่</span><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
+            <div class="onair-head"><span>กำลังเปิดอยู่</span><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
             <button type="button" class="x-btn" data-act="remove" aria-label="เอาเพลงนี้ออก (ข้ามหรือลบ)" title="ข้ามหรือลบเพลงนี้" style="top:8px;right:8px">${icon("x", 20)}</button>
             <div class="onair-song">
                 <a class="thumb-link" href="${watchUrl(r.youtubeId)}" target="_blank" rel="noopener" aria-label="เปิดใน YouTube"><img class="thumb" src="${esc(window.ytThumbnail(r.youtubeId))}" alt="" /></a>
                 <div style="min-width:0;padding-right:30px">
                     <a class="onair-title" href="${watchUrl(r.youtubeId)}" target="_blank" rel="noopener">${esc(r.title || r.youtubeId)}</a>
-                    <div class="onair-meta s-meta" style="padding:0;margin:4px 0 0;color:#b6bcc8">${metaLine(r)}</div>
                 </div>
             </div>
+            <div class="onair-meta s-meta" style="padding:0;margin:4px 0 0;color:#b6bcc8">${metaLine(r)}</div>
             ${r.note ? noteStrip(r.note) : ""}
             <div class="onair-actions">
                 <button type="button" class="btn done" data-act="played">${icon("check", 18)}เล่นจบแล้ว</button>
@@ -445,7 +445,7 @@
         renderOnAir(snap.nowPlaying)
         $("queue-count").textContent = snap.queue.length ? `(${snap.queue.length})` : ""
         if (snap.queue.length === 0) {
-            queuePanel.innerHTML = '<p class="empty-hint">คิวว่าง รอคำขอจากนักเรียน หรือกด “เพิ่มเพลง”</p>'
+            queuePanel.innerHTML = '<p class="empty-hint">คิวว่าง รอคำขอจากนักเรียน หรือกด "เพิ่มเพลง"</p>'
             openPreviewId = null
         } else {
             reconcileQueue(snap.queue)
@@ -563,7 +563,7 @@
                     <a class="thumb-link" href="${watchUrl(r.youtubeId)}" target="_blank" rel="noopener"><img class="thumb" style="width:72px" src="${esc(window.ytThumbnail(r.youtubeId))}" alt="" /></a>
                     <div class="row-body">
                         <div class="row-title" style="color:var(--text)">${esc(r.title || r.youtubeId)}</div>
-                        <div class="row-meta"><span class="who">${esc(whoOf(r))}</span><span class="sep">–</span>${agoSpan(r.createdAt)}</div>
+                        <div class="row-meta"><span class="who">${esc(whoOf(r))}</span>${agoSpan(r.createdAt)}</div>
                         <div class="status-line2"><span class="status-badge st-${r.status}">${STATUS_LABEL[r.status] || r.status}</span>${r.skipReason ? esc(r.skipReason) : ""}</div>
                     </div>
                 </div>

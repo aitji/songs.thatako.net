@@ -97,9 +97,9 @@
 
     const openHelp = () => window.ui.openInfoModal(
         "วิธีใช้งาน",
-        `<p>วางลิงก์ยูทูบแล้วกด “ขอเพลง” การส่งคำขอ<strong>ไม่ได้การันตี</strong>ว่าเพลงจะถูกเปิด ขึ้นอยู่กับดุลยพินิจของ PR และเวลาที่เหลือในช่วงเช้า</p>
-         <p><strong>สถานะ:</strong> รอคิว → กำลังเปิด → เปิดแล้ว หรือ ข้ามเพลง (ขอใหม่ได้ทันที ไม่เสียโควตา) ป้าย “ผ่านรีวิว” คือ PR ตรวจเพลงนี้แล้ว</p>
-         <p><strong>จัดการคำขอของคุณ:</strong> แก้ชื่อหรือข้อความถึง PR ได้ และลบเพลงที่ยังรอคิวได้ที่แท็บ “ของฉัน” เพลงที่กำลังเปิดหรือเปิดแล้วลบไม่ได้</p>
+        `<p>วางลิงก์ยูทูบแล้วกด "ขอเพลง" การส่งคำขอ<strong>ไม่ได้การันตี</strong>ว่าเพลงจะถูกเปิด ขึ้นอยู่กับดุลยพินิจของ PR และเวลาที่เหลือในช่วงเช้า</p>
+         <p><strong>สถานะ:</strong> รอคิว > กำลังเปิด > เปิดแล้ว หรือ ข้ามเพลง (ขอใหม่ได้ทันที ไม่เสียโควตา) ป้าย "ผ่านรีวิว" คือ PR ตรวจเพลงนี้แล้ว</p>
+         <p><strong>จัดการคำขอของคุณ:</strong> แก้ชื่อหรือข้อความถึง PR ได้ และลบเพลงที่ยังรอคิวได้ที่แท็บ "ของฉัน" เพลงที่กำลังเปิดหรือเปิดแล้วลบไม่ได้</p>
          <p><strong>ข้อความถึง PR</strong> เห็นเฉพาะ PR คนอื่นไม่เห็น</p>`
     )
     $("help-btn").addEventListener("click", openHelp)
@@ -159,7 +159,7 @@
             preview.status = meta.missing ? "missing" : "ok"
             const box = urlPreview
             box.querySelector(".pv-title").textContent = meta.missing ? "ไม่พบวิดีโอนี้" : (meta.title || "ลิงก์ถูกต้อง")
-            box.querySelector(".pv-sub").textContent = meta.missing ? "วิดีโอถูกลบหรือเป็นส่วนตัว ลองเพลงอื่นนะ" : "ถ้าใช่เพลงนี้ กด “ขอเพลง” ได้เลย"
+            box.querySelector(".pv-sub").textContent = meta.missing ? "วิดีโอถูกลบหรือเป็นส่วนตัว ลองเพลงอื่นนะ" : 'ถ้าใช่เพลงนี้ กด "ขอเพลง" ได้เลย'
             showUrlState(parsed)
             refreshFormState()
         })
@@ -234,7 +234,7 @@
 
         const cap = capOf()
         if (cap === null) capNote.textContent = ""
-        else if (capReached()) capNote.innerHTML = `<span style="color:var(--red-strong);font-weight:500">คุณขอครบ ${cap} เพลงแล้ว ลบเพลงที่ยังรอคิวที่แท็บ “ของฉัน” เพื่อขอเพลงใหม่</span>`
+        else if (capReached()) capNote.innerHTML = `<span style="color:var(--red-strong);font-weight:500">คุณขอครบ ${cap} เพลงแล้ว ลบเพลงที่ยังรอคิวที่แท็บ "ของฉัน" เพื่อขอเพลงใหม่</span>`
         else capNote.textContent = `ขอได้ไม่เกิน ${cap} เพลงต่อคน (ใช้ไป ${usedQuota()}/${cap})`
     }
 
@@ -262,7 +262,7 @@
             noteWrap.hidden = true; noteToggle.setAttribute("aria-expanded", "false")
             parsed = { kind: "empty" }; showUrlState(parsed)
             formStatus.textContent = "ส่งคำขอเรียบร้อยแล้ว"
-            window.ui.showToast("ส่งคำขอแล้ว ดูสถานะได้ที่แท็บ “ของฉัน”")
+            window.ui.showToast('ส่งคำขอแล้ว ดูสถานะได้ที่แท็บ "ของฉัน"')
             await refreshMine()
             switchTab("me")
             setTimeout(() => { highlightId = null; renderMineUI() }, 4000)
@@ -303,7 +303,7 @@
     async function removeMine(r) {
         const ok = await window.ui.confirm({
             title: "ลบเพลงนี้ออกจากคิว?",
-            bodyHtml: `<p>“${esc(r.title || r.youtubeId)}” จะถูกลบ และคืนโควตาให้ 1 เพลง</p>`,
+            bodyHtml: `<p>'${esc(r.title || r.youtubeId)}' จะถูกลบ และคืนโควตาให้ 1 เพลง</p>`,
             confirmLabel: "ลบออกจากคิว", danger: true,
         })
         if (!ok) return
@@ -346,7 +346,7 @@
                 <div class="row-body">
                     <div class="row-title">${titleLink(q)}</div>
                     <div class="row-meta">
-                        <span class="who">${esc(whoOf(q))}</span><span class="sep">–</span>${agoSpan(q.createdAt)}
+                        <span class="who">${esc(whoOf(q))}</span>${agoSpan(q.createdAt)}
                         ${mine ? '<span class="chip you">คุณ</span>' : ""}${reviewedChip(q)}
                         ${mine ? `<button type="button" class="edit-link" data-manage="${esc(q.id)}">${icon("pencil", 13)}แก้ไข</button>` : ""}
                     </div>
@@ -360,7 +360,7 @@
                 ${thumbLink(p)}
                 <div class="row-body">
                     <div class="row-title">${titleLink(p)}</div>
-                    <div class="row-meta"><span class="who">${esc(whoOf(p))}</span><span class="sep">–</span>${p.playedAt ? agoSpan(p.playedAt, "played") : agoSpan(p.createdAt)}</div>
+                    <div class="row-meta"><span class="who">${esc(whoOf(p))}</span>${p.playedAt ? agoSpan(p.playedAt, "played") : agoSpan(p.createdAt)}</div>
                 </div>
             </div>
         </div>`
@@ -376,7 +376,7 @@
         $("now-playing").innerHTML = np
             ? `<div class="onair-song">${thumbLink(np)}<div style="min-width:0">
                     <a class="yt-link onair-title" ${ytAttrs(np)}>${esc(np.title || np.youtubeId)}</a>
-                    <div class="onair-meta">${esc(whoOf(np))} – ${agoSpan(np.createdAt)}</div></div></div>`
+                    </div></div><div class="onair-meta">${esc(whoOf(np))} ${agoSpan(np.createdAt)}</div>`
             : '<div class="onair-idle-text">ยังไม่มีเพลงกำลังเปิด เมื่อ PR เริ่มเปิดจะแสดงที่นี่</div>'
 
         // lists
@@ -428,7 +428,7 @@
         const list = $("mine-list")
         list.innerHTML = latestMine.length
             ? latestMine.slice().reverse().map(mineRow).join("")
-            : '<p class="empty-hint">ยังไม่มีคำขอของคุณวันนี้ ไปที่แท็บ “ขอเพลง” ได้เลย</p>'
+            : '<p class="empty-hint">ยังไม่มีคำขอของคุณวันนี้ ไปที่แท็บ "ขอเพลง" ได้เลย</p>'
 
         $("tab-me-badge").hidden = !latestMine.some((r) => r.status === "queued" || r.status === "playing")
         refreshFormState()
@@ -456,7 +456,7 @@
                 ${thumbLink(r)}
                 <div class="row-body">
                     <div class="row-title">${titleLink(r)}</div>
-                    <div class="row-meta"><span class="who">${esc(whoOf(r))}</span><span class="sep">–</span>${agoSpan(r.createdAt)}</div>
+                    <div class="row-meta"><span class="who">${esc(whoOf(r))}${agoSpan(r.createdAt)}</div>
                     <div class="status-line2">${bits.join("")}</div>
                 </div>
             </div>

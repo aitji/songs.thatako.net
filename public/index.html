@@ -75,8 +75,8 @@
 
                 <section id="onair" class="onair idle" aria-live="polite">
                     <div class="onair-head">
-                        <span class="onair-dot"></span><span>กำลังเปิดอยู่</span>
                         <span class="eq" id="onair-eq" hidden aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                        <span>กำลังเปิดอยู่</span>
                     </div>
                     <div id="now-playing">
                         <div class="skeleton-row" style="padding:0">
@@ -91,7 +91,6 @@
 
                 <section class="panel" id="form-panel">
                     <div class="panel-head">
-                        <h2>ขอเพลง</h2>
                         <span id="status-line" class="status-pill"><span class="status-dot"></span><span>กำลังโหลด...</span></span>
                     </div>
 
@@ -106,15 +105,15 @@
                         <div id="url-preview" class="url-preview" hidden></div>
 
                         <label for="nickname">ชื่อเล่น (ไม่บังคับ)<span class="counter" id="nick-count"></span></label>
-                        <input type="text" id="nickname" placeholder="ชื่อที่ PR จะอ่านให้ฟัง" maxlength="24" autocomplete="off" />
+                        <input type="text" id="nickname" placeholder="ชื่อที่คนอื่นจะเห็น" maxlength="24" autocomplete="off" />
 
-                        <button type="button" class="disclosure-btn" id="note-toggle" aria-expanded="false" aria-controls="note-wrap">
-                            <span data-icon="plus" data-size="16"></span>ฝากข้อความถึง PR
+                        <button type="button" class="disclosure-btn" id="note-toggle" aria-expanded="true" aria-controls="note-wrap">
+                            <span data-icon="plus" data-size="16"></span>ฝากข้อความถึง PR (ไม่บังคับ)
                         </button>
-                        <div id="note-wrap" hidden>
+                        <div id="note-wrap">
                             <label for="note" style="margin-top:6px">ข้อความถึง PR<span class="counter" id="note-count"></span></label>
                             <textarea id="note" maxlength="120" rows="3" placeholder="เช่น ขอให้เปิดหลังประกาศเขต"></textarea>
-                            <div class="hint">เห็นเฉพาะ PR คนอื่นไม่เห็นข้อความนี้ ไม่ได้ช่วยให้เพลงได้เปิดแน่นอน</div>
+                            <div class="hint">เห็นเฉพาะ PR, คนอื่นไม่เห็นข้อความนี้</div>
                         </div>
 
                         <div class="submit-row">
