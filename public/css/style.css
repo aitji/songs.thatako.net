@@ -370,7 +370,6 @@ button.chip.dev { border: 1px solid var(--line); }
 .s-title .ic { display: inline; vertical-align: -2px; margin-left: 4px; color: var(--faint); }
 .s-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: .82rem; color: var(--muted); padding-left: 38px; margin-top: -2px; }
 .s-meta .who { font-weight: 500; color: var(--text); }
-.song-main > .note-strip { margin-left: 38px; }
 
 .btn-play { width: 100%; min-height: 46px; border: 0; border-radius: var(--r-ctl); background: var(--red); color: #fff; font-weight: 600; font-size: .95rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background var(--speed); margin-top: 8px }
 .btn-play:hover { background: var(--red-strong); }
