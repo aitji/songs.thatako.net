@@ -8,15 +8,15 @@ import {
     CORS, thDateStr,
     ResError, ytMeta,
     jsonRes, parseYTID,
-    stripDeviceIds,
+    stripPrivate, cleanText, cleanDevice,
 } from "./utils"
 import {
-    buildSnapshot, clearQueue, countActiveRequests,
+    buildSnapshot, clearQueue, countActiveRequests, deleteRequest,
     findActiveDuplicate as findDupe, ensureSession,
     getRequest, insertRequest as insertReq,
     listMine, maybeAutoAdvance, reorderQueue,
-    requeueRequest, resetSession, reviewRequest, setPlayingExclusive, setStatus,
-    toPublic, updateSession
+    removeOwnQueued, requeueRequest, resetSession, reviewRequest, setPlayingExclusive, setStatus,
+    toPublic, updateOwnText, updateSession
 } from "./db"
 export { MorningRoom } from "./morningRoom"
 
@@ -75,7 +75,7 @@ export default {
                 await ensureSession(env.DB, id)
                 const snap = await ensureSnapshot(env, id)
                 const admin = await isAdmin(request, env)
-                return jsonRes(admin ? snap : stripDeviceIds(snap), {}, origin)
+                return jsonRes(admin ? snap : stripPrivate(snap), {}, origin)
             }
             if (url.pathname === "/api/events" && request.method === "GET") {
                 await ensureSession(env.DB, id)
@@ -96,11 +96,14 @@ export default {
             }
 
             if (url.pathname === "/api/requests/mine" && request.method === "GET") {
-                const deviceId = url.searchParams.get("deviceId")
-                if (!deviceId || deviceId.length === 0) return ResError("device_id_required", 400, origin)
-                const mine = await listMine(env.DB, id, deviceId.slice(0, 64))
-                return jsonRes({ requests: mine.map((r) => toPublic(r, deviceId.slice(0, 64))) }, {}, origin)
+                const deviceId = cleanDevice(url.searchParams.get("deviceId"))
+                if (!deviceId) return ResError("device_id_required", 400, origin)
+                const mine = await listMine(env.DB, id, deviceId)
+                return jsonRes({ requests: mine.map((r) => toPublic(r, deviceId)) }, {}, origin)
             }
+
+            const ownMatch = url.pathname.match(/^\/api\/requests\/([^/]+)\/(update|remove)$/)
+            if (ownMatch && request.method === "POST") return handleOwnReq(request, env, ownMatch[1], ownMatch[2] as "update" | "remove", origin)
 
             // pr team
             if (url.pathname === "/api/admin/login" && request.method === "POST") return adminLogon(request, env, origin)
@@ -129,8 +132,10 @@ const handleCReq = async (request: Request, env: Env, origin?: string): Promise<
     const body = (await request.json().catch(() => null)) as any
     if (!body || typeof body.deviceId !== "string" || typeof body.youtubeUrl !== "string") return ResError("device_id_and_youtube_url_required", 400, origin)
     if (body.deviceId.length === 0 || body.youtubeUrl.length === 0 || body.youtubeUrl.length > 2048) return ResError("invalid_youtube_url", 400, origin)
-    const deviceId = body.deviceId.slice(0, 64)
-    const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 24) || null : null
+    const deviceId = cleanDevice(body.deviceId)
+    if (!deviceId) return ResError("device_id_and_youtube_url_required", 400, origin)
+    const nickname = cleanText(body.nickname, 24)
+    const note = cleanText(body.note, 120)
 
     const ytID = parseYTID(body.youtubeUrl)
     if (!ytID) return ResError("invalid_youtube_url", 400, origin)
@@ -156,11 +161,42 @@ const handleCReq = async (request: Request, env: Env, origin?: string): Promise<
         title: meta.title,
         channel: meta.channel,
         nickname,
+        note,
         source: "student",
     })
 
     await bumpAndSync(env, id)
     return jsonRes({ request: toPublic(created, deviceId) }, { status: 201 }, origin)
+}
+
+const handleOwnReq = async (
+    request: Request, env: Env, reqId: string, action: "update" | "remove", origin?: string
+): Promise<Response> => {
+    const body = (await request.json().catch(() => null)) as any
+    const deviceId = cleanDevice(body?.deviceId)
+    if (!deviceId) return ResError("device_id_required", 400, origin)
+
+    const sessionId = thDateStr()
+    const existing = await getRequest(env.DB, reqId)
+    if (!existing || existing.sessionId !== sessionId || existing.deviceId !== deviceId || existing.source !== "student") {
+        return ResError("not_found", 404, origin)
+    }
+
+    if (action === "remove") {
+        if (!(await removeOwnQueued(env.DB, reqId, deviceId))) return ResError("not_removable", 409, origin)
+        await bumpAndSync(env, sessionId)
+        return jsonRes({ ok: true }, {}, origin)
+    }
+
+    const patch: { nickname?: string | null; note?: string | null } = {}
+    if ("nickname" in body) patch.nickname = cleanText(body.nickname, 24)
+    if ("note" in body) patch.note = cleanText(body.note, 120)
+    if (Object.keys(patch).length === 0) return ResError("nothing_to_update", 400, origin)
+    if (!(await updateOwnText(env.DB, reqId, deviceId, patch))) return ResError("not_editable", 409, origin)
+
+    await bumpAndSync(env, sessionId)
+    const updated = await getRequest(env.DB, reqId)
+    return jsonRes({ ok: true, request: updated ? toPublic(updated, deviceId) : null }, {}, origin)
 }
 
 const adminLogon = async (request: Request, env: Env, origin?: string): Promise<Response> => {
@@ -219,7 +255,7 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         if (!rawUrl || rawUrl.length > 2048) return ResError("invalid_youtube_url", 400, origin)
         const ytID = parseYTID(rawUrl)
         if (!ytID) return ResError("invalid_youtube_url", 400, origin)
-        const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 24) || null : null
+        const nickname = cleanText(body.nickname, 24)
         if (await findDupe(env.DB, sessionId, ytID)) return ResError("duplicate_song", 409, origin)
 
         const meta = await ytMeta(ytID)
@@ -255,11 +291,11 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         const existing = await getRequest(env.DB, id)
         if (!existing || existing.sessionId !== sessionId) return ResError("not_found", 404, origin)
 
-        if (action === "skip" || action === "delete") {
+        if (action === "skip") {
             const body = (await request.json().catch(() => ({}))) as any
-            const reason = action === "skip" && typeof body?.reason === "string" ? body.reason.trim().slice(0, 80) || null : null
-            await setStatus(env.DB, id, "skipped", { skipReason: reason })
+            await setStatus(env.DB, id, "skipped", { skipReason: cleanText(body?.reason, 80) })
         }
+        else if (action === "delete") await deleteRequest(env.DB, sessionId, id)
         else if (action === "play") await setPlayingExclusive(env.DB, sessionId, id)
         else if (action === "played") await setStatus(env.DB, id, "played")
         else if (action === "requeue") await requeueRequest(env.DB, sessionId, id, false)
@@ -296,7 +332,7 @@ const adminApi = async (request: Request, env: Env, url: URL, origin?: string): 
         try { deviceId = decodeURIComponent(deviceMatch[1]).slice(0, 64) }
         catch { return ResError("invalid_device_id", 400, origin) }
         const rows = await listMine(env.DB, sessionId, deviceId)
-        return jsonRes({ requests: rows.map((r) => toPublic(r)) }, {}, origin)
+        return jsonRes({ requests: rows.map((r) => toPublic(r, undefined, true)) }, {}, origin)
     }
 
     return ResError("not_found", 404, origin)

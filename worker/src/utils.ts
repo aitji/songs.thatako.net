@@ -1,17 +1,24 @@
 import type { PublicRequest, StateSnapshot } from "./types"
 
-const stripReqDeviceId = (r: PublicRequest): PublicRequest => {
-    if (!("deviceId" in r)) return r
-    const { deviceId, ...rest } = r
+const stripReqPrivate = (r: PublicRequest): PublicRequest => {
+    const { deviceId, note, ...rest } = r
     return rest
 }
 
-export const stripDeviceIds = (snap: StateSnapshot): StateSnapshot => ({
+export const stripPrivate = (snap: StateSnapshot): StateSnapshot => ({
     ...snap,
-    nowPlaying: snap.nowPlaying ? stripReqDeviceId(snap.nowPlaying) : null,
-    queue: snap.queue.map(stripReqDeviceId),
-    played: snap.played.map(stripReqDeviceId),
+    nowPlaying: snap.nowPlaying ? stripReqPrivate(snap.nowPlaying) : null,
+    queue: snap.queue.map(stripReqPrivate),
+    played: snap.played.map(stripReqPrivate),
 })
+
+export const cleanText = (v: unknown, max: number): string | null => {
+    if (typeof v !== "string") return null
+    return v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max) || null
+}
+
+export const cleanDevice = (v: unknown): string | null =>
+    typeof v === "string" && v.length > 0 && v !== "admin" ? v.slice(0, 64) : null
 
 export const jsonRes = (
     data: unknown,

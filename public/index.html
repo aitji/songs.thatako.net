@@ -64,15 +64,8 @@
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-inner">
-                <span class="topbar-title">เสียงตามสายตอนเช้า</span>
-                <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน">
-                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
-                        <path d="M9.5 9.3a2.5 2.5 0 1 1 3.3 2.4c-.9.3-1.3.9-1.3 1.9" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" />
-                        <circle cx="12" cy="16.6" r="0.9" fill="currentColor" />
-                    </svg>
-                </button>
+                <span class="topbar-title">เสียงตามสายตอนเช้า<small>ขอเพลงให้ PR เปิดให้ฟัง</small></span>
+                <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน"><span data-icon="help" data-size="18"></span></button>
             </div>
         </header>
 
@@ -80,117 +73,105 @@
             <!-- TAB: request -->
             <section id="panel-request" class="tab-panel" data-panel="request">
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>กำลังเปิดอยู่</h2>
-                    <div id="now-playing" class="now-playing-row">
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-60"></div>
-                            </div>
+                <section id="onair" class="onair idle" aria-live="polite">
+                    <div class="onair-head">
+                        <span class="onair-dot"></span><span>กำลังเปิดอยู่</span>
+                        <span class="eq" id="onair-eq" hidden aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    </div>
+                    <div id="now-playing">
+                        <div class="skeleton-row" style="padding:0">
+                            <div class="skeleton skeleton-thumb" style="width:112px"></div>
+                            <div style="flex:1"><div class="skeleton skeleton-line w-80"></div></div>
                         </div>
                     </div>
-                    <div id="now-playing-context" class="now-playing-context" hidden></div>
+                    <div id="now-playing-context" class="onair-context" hidden></div>
                 </section>
 
-                <div id="queue-warning" class="queue-warning"></div>
+                <div id="queue-warning" class="queue-warning" hidden></div>
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>ขอเพลง</h2>
-                    <div id="status-line" class="status-line">
-                        <span class="status-dot"></span><span>กำลังโหลดสถานะ...</span>
+                <section class="panel" id="form-panel">
+                    <div class="panel-head">
+                        <h2>ขอเพลง</h2>
+                        <span id="status-line" class="status-pill"><span class="status-dot"></span><span>กำลังโหลด...</span></span>
                     </div>
-                    <form id="request-form">
-                        <label for="youtube-url">ลิงก์ยูทูบ</label>
-                        <input type="url" id="youtube-url" placeholder="https://youtu.be/..." required />
-                        <div class="hint">แนะนำให้ส่งเพลงแบบปกติ (ไม่ใช่ MV) จะเปิดผ่านเสียงตามสายได้เหมาะกว่า</div>
 
-                        <label for="nickname">ชื่อเล่น (ไม่บังคับ)</label>
-                        <input type="text" id="nickname" placeholder="ไม่ใส่ก็ได้" maxlength="24" />
+                    <form id="request-form" novalidate>
+                        <label for="youtube-url" style="margin-top:0">ลิงก์ยูทูบ</label>
+                        <div class="input-with-btn">
+                            <input type="text" id="youtube-url" inputmode="url" autocomplete="off" autocapitalize="off"
+                                autocorrect="off" spellcheck="false" placeholder="วางลิงก์ที่นี่" aria-describedby="url-msg" />
+                            <button type="button" id="paste-btn" class="paste-btn"><span data-icon="paste" data-size="15"></span>วาง</button>
+                        </div>
+                        <div id="url-msg" class="field-msg" role="status" aria-live="polite"></div>
+                        <div id="url-preview" class="url-preview" hidden></div>
 
-                        <button type="submit" id="submit-btn" class="btn-primary" disabled>
-                            <span id="submit-btn-label">ขอเพลง</span>
+                        <label for="nickname">ชื่อเล่น (ไม่บังคับ)<span class="counter" id="nick-count"></span></label>
+                        <input type="text" id="nickname" placeholder="ชื่อที่ PR จะอ่านให้ฟัง" maxlength="24" autocomplete="off" />
+
+                        <button type="button" class="disclosure-btn" id="note-toggle" aria-expanded="false" aria-controls="note-wrap">
+                            <span data-icon="plus" data-size="16"></span>ฝากข้อความถึง PR
                         </button>
+                        <div id="note-wrap" hidden>
+                            <label for="note" style="margin-top:6px">ข้อความถึง PR<span class="counter" id="note-count"></span></label>
+                            <textarea id="note" maxlength="120" rows="3" placeholder="เช่น ขอให้เปิดหลังประกาศเขต"></textarea>
+                            <div class="hint">เห็นเฉพาะ PR คนอื่นไม่เห็นข้อความนี้ ไม่ได้ช่วยให้เพลงได้เปิดแน่นอน</div>
+                        </div>
+
+                        <div class="submit-row">
+                            <button type="submit" id="submit-btn" class="btn primary" disabled><span id="submit-btn-label">ขอเพลง</span></button>
+                        </div>
                         <div id="form-status" class="sr-only" role="status" aria-live="polite"></div>
                     </form>
                     <div id="cap-note" class="cap-note"></div>
                 </section>
 
-                <details class="card collapsible">
-                    <summary><span class="dot-bullet"></span>คิวเพลงตอนนี้</summary>
-                    <div class="collapsible-body">
-                        <div id="queue-list">
-                            <div class="skeleton-row">
-                                <div class="skeleton skeleton-thumb"></div>
-                                <div style="flex:1">
-                                    <div class="skeleton skeleton-line w-80"></div>
-                                </div>
-                            </div>
-                            <div class="skeleton-row">
-                                <div class="skeleton skeleton-thumb"></div>
-                                <div style="flex:1">
-                                    <div class="skeleton skeleton-line w-60"></div>
-                                </div>
-                            </div>
-                        </div>
+                <section class="panel">
+                    <div class="seg" role="tablist" aria-label="รายการเพลง">
+                        <button type="button" role="tab" data-seg="queue" aria-selected="true">คิวเพลง<span class="n" id="seg-queue-n"></span></button>
+                        <button type="button" role="tab" data-seg="played" aria-selected="false">เล่นแล้ว<span class="n" id="seg-played-n"></span></button>
                     </div>
-                </details>
-
-                <details class="card collapsible" id="recent-played-card" hidden>
-                    <summary><span class="dot-bullet"></span>เพิ่งเล่นไป</summary>
-                    <div class="collapsible-body">
-                        <div id="recent-played-list"></div>
+                    <div id="queue-list" data-seg-panel="queue">
+                        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div style="flex:1"><div class="skeleton skeleton-line w-80"></div></div></div>
+                        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div style="flex:1"><div class="skeleton skeleton-line w-60"></div></div></div>
                     </div>
-                </details>
+                    <div id="recent-played-list" data-seg-panel="played" hidden></div>
+                </section>
             </section>
 
             <!-- tab: me -->
             <section id="panel-me" class="tab-panel" data-panel="me" hidden>
-
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>โควตาวันนี้</h2>
-                    <div id="quota-summary">
-                        <div class="skeleton skeleton-line w-40"></div>
-                    </div>
+                <section class="panel">
+                    <h2>โควตาวันนี้</h2>
+                    <div id="quota-summary"><div class="skeleton skeleton-line w-40"></div></div>
                 </section>
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>คำขอของคุณ</h2>
+                <section class="panel">
+                    <h2>คำขอของคุณ</h2>
                     <div id="mine-list">
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-60"></div>
-                            </div>
-                        </div>
+                        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div style="flex:1"><div class="skeleton skeleton-line w-60"></div></div></div>
                     </div>
                 </section>
             </section>
-
         </main>
 
         <nav class="tabbar" role="tablist">
-            <button class="tab-btn active" data-tab="request" role="tab" aria-selected="true">
-                <svg viewBox="0 0 24 24" width="21" height="21" fill="none">
-                    <path d="M4 12l16-7-6 16-2.5-6.5L4 12z" stroke="currentColor" stroke-width="1.8"
-                        stroke-linejoin="round" stroke-linecap="round" />
-                </svg>
-                <span>ขอเพลง</span>
-            </button>
-            <button class="tab-btn" data-tab="me" role="tab" aria-selected="false">
-                <svg viewBox="0 0 24 24" width="21" height="21" fill="none">
-                    <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8" />
-                    <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8"
-                        stroke-linecap="round" />
-                </svg>
-                <span id="tab-me-label">ของฉัน</span>
-                <span class="tab-badge" id="tab-me-badge" hidden></span>
-            </button>
+            <div class="tabbar-inner">
+                <button class="tab-btn active" data-tab="request" role="tab" aria-selected="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M4 12l16-7-6 16-2.5-6.5L4 12z" /></svg>
+                    <span>ขอเพลง</span>
+                </button>
+                <button class="tab-btn" data-tab="me" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /></svg>
+                    <span>ของฉัน</span>
+                    <span class="tab-badge" id="tab-me-badge" hidden></span>
+                </button>
+            </div>
         </nav>
     </div>
 
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
     <script src="js/sse.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/time.js"></script>

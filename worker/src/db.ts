@@ -27,6 +27,7 @@ const rowToRequest = (row: any): SongRequest => {
         title: row.title,
         channel: row.channel,
         nickname: row.nickname,
+        note: row.note ?? null,
         status: row.status,
         source: row.source,
         position: row.position,
@@ -114,6 +115,7 @@ export const insertRequest = async (
         title: string | null
         channel: string | null
         nickname: string | null
+        note?: string | null
         source: "student" | "admin"
     }
 ): Promise<SongRequest> => {
@@ -121,7 +123,7 @@ export const insertRequest = async (
     const now = Date.now()
     const position = await nextPosition(db, params.sessionId)
     await db
-        .prepare(`INSERT INTO requests (id, session_id, device_id, youtube_id, title, channel, nickname, status, source, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`)
+        .prepare(`INSERT INTO requests (id, session_id, device_id, youtube_id, title, channel, nickname, note, status, source, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`)
         .bind(
             id,
             params.sessionId,
@@ -130,6 +132,7 @@ export const insertRequest = async (
             params.title,
             params.channel,
             params.nickname,
+            params.note ?? null,
             params.source,
             position,
             now,
@@ -145,6 +148,7 @@ export const insertRequest = async (
         title: params.title,
         channel: params.channel,
         nickname: params.nickname,
+        note: params.note ?? null,
         status: "queued",
         source: params.source,
         position,
@@ -182,6 +186,38 @@ export const setStatus = async (
         .prepare(`UPDATE requests SET status = ?, updated_at = ? WHERE id = ?`)
         .bind(status, now, id)
         .run()
+}
+
+export const updateOwnText = async (
+    db: D1Database,
+    id: string,
+    deviceId: string,
+    patch: { nickname?: string | null; note?: string | null }
+): Promise<boolean> => {
+    const sets: string[] = []
+    const vals: unknown[] = []
+    if ("nickname" in patch) { sets.push("nickname = ?"); vals.push(patch.nickname ?? null) }
+    if ("note" in patch) { sets.push("note = ?"); vals.push(patch.note ?? null) }
+    if (sets.length === 0) return false
+    sets.push("updated_at = ?")
+    vals.push(Date.now())
+    const res = await db
+        .prepare(`UPDATE requests SET ${sets.join(", ")} WHERE id = ? AND device_id = ? AND source = 'student' AND status IN ('queued','playing')`)
+        .bind(...vals, id, deviceId)
+        .run()
+    return (res.meta?.changes ?? 0) > 0
+}
+
+export const removeOwnQueued = async (db: D1Database, id: string, deviceId: string): Promise<boolean> => {
+    const res = await db
+        .prepare(`DELETE FROM requests WHERE id = ? AND device_id = ? AND source = 'student' AND status = 'queued'`)
+        .bind(id, deviceId)
+        .run()
+    return (res.meta?.changes ?? 0) > 0
+}
+
+export const deleteRequest = async (db: D1Database, sessionId: string, id: string): Promise<void> => {
+    await db.prepare(`DELETE FROM requests WHERE id = ? AND session_id = ?`).bind(id, sessionId).run()
 }
 
 export const reorderQueue = async (db: D1Database, sessionId: string, orderedIds: string[]): Promise<void> => {
@@ -302,7 +338,8 @@ export const listMine = async (db: D1Database, sessionId: string, deviceId: stri
     return (results ?? []).map(rowToRequest)
 }
 
-export const toPublic = (r: SongRequest, deviceId?: string, includeDeviceId = false): PublicRequest => {
+export const toPublic = (r: SongRequest, deviceId?: string, includePrivate = false): PublicRequest => {
+    const mine = !!deviceId && r.deviceId === deviceId
     return {
         id: r.id,
         youtubeId: r.youtubeId,
@@ -313,9 +350,12 @@ export const toPublic = (r: SongRequest, deviceId?: string, includeDeviceId = fa
         source: r.source,
         skipReason: r.skipReason,
         reviewed: r.reviewed,
+        quotaExempt: r.quotaExempt,
         createdAt: r.createdAt,
-        ...(deviceId ? { mine: r.deviceId === deviceId } : {}),
-        ...(includeDeviceId ? { deviceId: r.deviceId } : {}),
+        playedAt: r.playedAt,
+        ...(deviceId ? { mine } : {}),
+        ...(includePrivate || mine ? { note: r.note } : {}),
+        ...(includePrivate ? { deviceId: r.deviceId } : {}),
     }
 }
 

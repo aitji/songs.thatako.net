@@ -1,5 +1,5 @@
 import type { Env, StateSnapshot } from "./types"
-import { stripDeviceIds } from "./utils"
+import { stripPrivate } from "./utils"
 
 const EMPTY_SNAPSHOT: StateSnapshot = {
     version: 0,
@@ -54,7 +54,7 @@ export class MorningRoom {
                 this.clients.set(client.connId, client)
 
                 const snapshot = await this.getSnapshot()
-                this.safeEnqueue(client, "state", client.isAdmin ? snapshot : stripDeviceIds(snapshot))
+                this.safeEnqueue(client, "state", client.isAdmin ? snapshot : stripPrivate(snapshot))
 
                 heartbeat = setInterval(() => {
                     try { controller.enqueue(this.encoder.encode(": ping\n\n")) }
@@ -92,7 +92,7 @@ export class MorningRoom {
 
     private async applySnapshot(snapshot: StateSnapshot): Promise<void> {
         await this.state.storage.put("snapshot", snapshot)
-        const publicSnapshot = stripDeviceIds(snapshot)
+        const publicSnapshot = stripPrivate(snapshot)
         for (const client of this.clients.values()) {
             this.safeEnqueue(client, "state", client.isAdmin ? snapshot : publicSnapshot)
         }

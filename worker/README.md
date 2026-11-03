@@ -7,6 +7,8 @@ cloudflare worker
 * https://api.songs.thatako.net/api/state (GET)
 * https://api.songs.thatako.net/api/events (GET)
 * https://api.songs.thatako.net/api/requests/mine (GET)
+* https://api.songs.thatako.net/api/requests/:id/update (POST) `{deviceId, nickname?, note?}`
+* https://api.songs.thatako.net/api/requests/:id/remove (POST) `{deviceId}`
 
 * https://api.songs.thatako.net/api/admin/login (POST)
 * https://api.songs.thatako.net/api/admin/me (GET)

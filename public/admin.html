@@ -31,13 +31,11 @@
 <body>
     <section id="login-section" class="login-shell">
         <div class="brand">@pr</div>
-        <div class="card">
+        <div class="panel">
             <form id="login-form">
-                <label for="password-input">รหัสผ่าน PR</label>
-                <input type="password" id="password-input" required autofocus />
-                <button type="submit" id="login-btn" class="btn-primary">
-                    <span id="login-btn-label">เข้าสู่ระบบ</span>
-                </button>
+                <label for="password-input" style="margin-top:0">รหัสผ่าน PR</label>
+                <input type="password" id="password-input" required autofocus autocomplete="current-password" />
+                <button type="submit" id="login-btn" class="btn primary"><span id="login-btn-label">เข้าสู่ระบบ</span></button>
             </form>
         </div>
     </section>
@@ -47,198 +45,132 @@
             <h1>@pr</h1>
             <div class="admin-topbar-right">
                 <span id="admin-device-chip" class="device-chip" title="Device ID ของคุณ"></span>
-                <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน">
-                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
-                        <path d="M9.5 9.3a2.5 2.5 0 1 1 3.3 2.4c-.9.3-1.3.9-1.3 1.9" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" />
-                        <circle cx="12" cy="16.6" r="0.9" fill="currentColor" />
-                    </svg>
-                </button>
+                <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน"><span data-icon="help" data-size="18"></span></button>
             </div>
         </div>
 
         <main class="admin-content">
             <!-- TAB: queue -->
             <section id="panel-queue" class="tab-panel" data-panel="queue">
-                <section class="card">
-                    <div class="field-row" style="margin-bottom:0">
-                        <h2 style="margin:0"><span class="dot-bullet"></span>กำลังเปิด</h2>
-                    </div>
-                    <div id="admin-now-playing">
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-60"></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <div class="q-grid">
+                    <aside class="q-side">
+                        <section id="admin-onair" class="onair idle"></section>
+                    </aside>
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>คิว</h2>
-                    <div id="admin-queue">
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-80"></div>
+                    <div class="q-main">
+                        <section class="panel">
+                            <div class="panel-head">
+                                <h2>คิว <span class="count" id="queue-count"></span></h2>
+                                <button type="button" class="btn small" id="add-toggle" aria-expanded="false" aria-controls="add-wrap"><span data-icon="plus" data-size="16"></span>เพิ่มเพลง</button>
                             </div>
-                        </div>
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-60"></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>เล่นแล้ว</h2>
-                    <div id="admin-played-queue">
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-80"></div>
+                            <div id="add-wrap" class="add-form" hidden>
+                                <form id="add-song-form" novalidate>
+                                    <label for="add-youtube-url">ลิงก์ยูทูบ</label>
+                                    <input type="text" id="add-youtube-url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="วางลิงก์ที่นี่" />
+                                    <div id="add-url-msg" class="field-msg" aria-live="polite"></div>
+                                    <label for="add-nickname">ป้ายชื่อ (ไม่บังคับ)</label>
+                                    <input type="text" id="add-nickname" placeholder="เช่น เพลงเปิดท้ายชั่วโมง" maxlength="24" autocomplete="off" />
+                                    <div class="stack" style="margin-top:14px">
+                                        <button type="submit" id="add-song-btn" class="btn ink block" disabled><span id="add-song-label">เพิ่มเข้าคิว</span></button>
+                                    </div>
+                                    <div id="add-song-status" class="sr-only" role="status" aria-live="polite"></div>
+                                </form>
                             </div>
-                        </div>
-                        <div class="skeleton-row">
-                            <div class="skeleton skeleton-thumb"></div>
-                            <div style="flex:1">
-                                <div class="skeleton skeleton-line w-60"></div>
+
+                            <div id="admin-queue" style="position:relative">
+                                <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div style="flex:1"><div class="skeleton skeleton-line w-80"></div></div></div>
+                                <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div style="flex:1"><div class="skeleton skeleton-line w-60"></div></div></div>
                             </div>
-                        </div>
+                        </section>
                     </div>
-                </section>
-                <br><br><br> <!-- duck tape -->
+                </div>
             </section>
 
-            <!-- TAB: settings + add song -->
-            <section id="panel-settings" class="tab-panel" data-panel="settings" hidden>
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>ตั้งค่า</h2>
+            <!-- TAB: history -->
+            <section id="panel-history" class="tab-panel" data-panel="history" hidden>
+                <section class="panel">
+                    <h2>ภาพรวมวันนี้</h2>
+                    <div class="stat-grid">
+                        <div class="stat-card"><div class="stat-value" id="stat-queue">-</div><div class="stat-label">รอคิว</div></div>
+                        <div class="stat-card"><div class="stat-value" id="stat-played">-</div><div class="stat-label">เล่นแล้ว</div></div>
+                        <div class="stat-card"><div class="stat-value" id="stat-people">-</div><div class="stat-label">คนขอเพลง</div></div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <h2>เล่นแล้ว</h2>
+                    <div id="admin-played"><p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p></div>
+                </section>
+            </section>
 
-                    <div id="settings-status" class="status-line">
-                        <span class="status-dot"></span><span>กำลังโหลด...</span>
+            <!-- TAB: settings -->
+            <section id="panel-settings" class="tab-panel" data-panel="settings" hidden>
+                <section class="panel">
+                    <div class="panel-head">
+                        <h2>การรับคำขอ</h2>
+                        <span id="settings-status" class="status-pill"><span class="status-dot"></span><span>กำลังโหลด...</span></span>
                     </div>
 
                     <div class="field-row">
                         <label for="request-open-toggle">รับคำขอเพลง</label>
-                        <label class="switch">
-                            <input type="checkbox" id="request-open-toggle" />
-                            <span class="switch-track"></span>
-                        </label>
+                        <label class="switch"><input type="checkbox" id="request-open-toggle" /><span class="switch-track"></span></label>
                     </div>
+                    <div class="hint" style="margin-top:2px">สลับแล้วมีผลทันที ใช้หยุดรับชั่วคราวได้</div>
 
                     <div class="field-row">
                         <label for="autoplay-toggle">เล่นเพลงถัดไปอัตโนมัติ</label>
-                        <label class="switch">
-                            <input type="checkbox" id="autoplay-toggle" />
-                            <span class="switch-track"></span>
-                        </label>
+                        <label class="switch"><input type="checkbox" id="autoplay-toggle" /><span class="switch-track"></span></label>
                     </div>
-                    <div class="hint" style="margin-top:-8px">เมื่อไม่มีเพลงกำลังเปิด
-                        จะดึงเพลงที่รอคิวนานที่สุดมาเล่นให้เอง</div>
+                    <div class="hint" style="margin-top:2px">เมื่อไม่มีเพลงกำลังเปิด จะดึงเพลงที่รอคิวนานที่สุดมาเล่นให้เอง สลับแล้วมีผลทันที</div>
 
                     <label for="cap-input">จำนวนสูงสุดต่อคน</label>
                     <input type="text" inputmode="numeric" id="cap-input" />
 
                     <div class="time-row">
-                        <div>
-                            <label for="open-time-input">เปิดรับตอน</label>
-                            <input type="time" id="open-time-input" />
-                        </div>
-                        <div>
-                            <label for="close-time-input">ปิดรับตอน</label>
-                            <input type="time" id="close-time-input" />
-                        </div>
+                        <div><label for="open-time-input">เปิดรับตอน</label><input type="time" id="open-time-input" /></div>
+                        <div><label for="close-time-input">ปิดรับตอน</label><input type="time" id="close-time-input" /></div>
                     </div>
 
-                    <button id="settings-save-btn" class="btn-primary">
-                        <span id="settings-save-label">บันทึกการตั้งค่า</span>
-                    </button>
-                    <button id="settings-reset-btn" class="btn-danger-outline"
-                        type="button">รีเซ็ตเป็นค่าเริ่มต้น</button>
+                    <div class="stack">
+                        <button id="settings-save-btn" class="btn ink block"><span id="settings-save-label">บันทึกจำนวนและเวลา</span></button>
+                        <button id="settings-reset-btn" class="btn danger block" type="button">รีเซ็ตเป็นค่าเริ่มต้น</button>
+                    </div>
                     <div id="settings-status-msg" class="sr-only" role="status" aria-live="polite"></div>
                 </section>
 
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>เพิ่มเพลงเอง</h2>
-                    <form id="add-song-form">
-                        <label for="add-youtube-url">ลิงก์ยูทูบ</label>
-                        <input type="url" id="add-youtube-url" placeholder="https://youtu.be/..." required />
-                        <label for="add-nickname">ป้ายชื่อ (ไม่บังคับ)</label>
-                        <input type="text" id="add-nickname" placeholder="เช่น เพลงเปิดท้ายชั่วโมง" maxlength="24" />
-                        <button type="submit" id="add-song-btn" class="btn-primary">
-                            <span id="add-song-label">เพิ่มเข้าคิว</span>
-                        </button>
-                        <div id="add-song-status" class="sr-only" role="status" aria-live="polite"></div>
-                    </form>
+                <section class="panel danger-zone">
+                    <h2>ล้างข้อมูล</h2>
+                    <p>ล้างคิว ประวัติเพลงที่เล่นแล้ว หรือรีเซ็ตโควตาผู้ขอเพลง การล้างจะลบข้อมูลถาวร กู้คืนไม่ได้</p>
+                    <button id="clear-btn" class="btn danger block" type="button">ล้างคิว / โควตา...</button>
                 </section>
 
-                <section class="card danger-zone">
-                    <h2><span class="dot-bullet"></span>ล้างข้อมูล</h2>
-                    <p>ล้างคิว, ประวัติเพลงที่เล่นแล้ว หรือรีเซ็ตโควตาผู้ขอเพลง การล้างจะลบข้อมูลถาวร กู้คืนไม่ได้</p>
-                    <button id="clear-btn" class="btn-primary" type="button">ล้างคิว / โควตา...</button>
-                    <button id="logout-btn" class="btn-danger-outline">ออกจากระบบ</button>
-                </section>
-                <br><br><br> <!-- duck tape -->
-            </section>
-
-            <!-- TAB: status -->
-            <section id="panel-status" class="tab-panel" data-panel="status" hidden>
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>ภาพรวม</h2>
-                    <div class="stat-grid">
-                        <div class="stat-card">
-                            <div class="stat-value" id="stat-queue">-</div>
-                            <div class="stat-label">รอคิว</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="stat-played">-</div>
-                            <div class="stat-label">เล่นแล้ว</div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="card">
-                    <h2><span class="dot-bullet"></span>เล่นแล้ว</h2>
-                    <div id="admin-played-status">
-                        <p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p>
-                    </div>
+                <section class="panel">
+                    <button id="logout-btn" class="btn block">ออกจากระบบ</button>
                 </section>
             </section>
-            <br><br><br> <!-- duck tape -->
         </main>
 
         <nav class="tabbar" role="tablist">
-            <button class="tab-btn active" data-tab="queue" role="tab" aria-selected="true">
-                <svg viewBox="0 0 24 24" width="21" height="21" fill="none">
-                    <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                </svg>
-                <span>คิว</span>
-            </button>
-            <button class="tab-btn" data-tab="settings" role="tab" aria-selected="false">
-                <svg viewBox="0 0 24 24" width="21" height="21" fill="none">
-                    <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8" />
-                    <path
-                        d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.8 6.2l-1.7 1.7M7.9 16.1l-1.7 1.7M17.8 17.8l-1.7-1.7M7.9 7.9 6.2 6.2"
-                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                </svg>
-                <span>ตั้งค่า</span>
-            </button>
-            <button class="tab-btn" data-tab="status" role="tab" aria-selected="false">
-                <svg viewBox="0 0 24 24" width="21" height="21" fill="none">
-                    <path d="M4 19V10M11 19V5M18 19v-6" stroke="currentColor" stroke-width="1.8"
-                        stroke-linecap="round" />
-                </svg>
-                <span>สถานะ</span>
-            </button>
+            <div class="tabbar-inner">
+                <button class="tab-btn active" data-tab="queue" role="tab" aria-selected="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+                    <span>คิว</span><span class="tab-badge" id="tab-queue-badge" hidden></span>
+                </button>
+                <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 19V10M11 19V5M18 19v-6" /></svg>
+                    <span>ประวัติ</span>
+                </button>
+                <button class="tab-btn" data-tab="settings" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3.2" /><path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.8 6.2l-1.7 1.7M7.9 16.1l-1.7 1.7M17.8 17.8l-1.7-1.7M7.9 7.9 6.2 6.2" /></svg>
+                    <span>ตั้งค่า</span>
+                </button>
+            </div>
         </nav>
     </div>
 
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
     <script src="js/sse.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/time.js"></script>

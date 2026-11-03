@@ -18,6 +18,7 @@ export interface SongRequest {
     title: string | null
     channel: string | null
     nickname: string | null
+    note: string | null
     status: RequestStatus
     source: RequestSource
     position: number | null
@@ -50,9 +51,12 @@ export interface PublicRequest {
     source: RequestSource
     skipReason: string | null
     reviewed: boolean
+    quotaExempt: boolean
     createdAt: number
+    playedAt: number | null
     mine?: boolean
     deviceId?: string
+    note?: string | null
 }
 
 export interface StateSnapshot {
