@@ -151,7 +151,7 @@
 
             const first = root.querySelector("input[type=text], textarea")
             const primary = root.querySelector(".btn.primary, .btn.danger-solid")
-            ;(first || primary || root.querySelector(".btn"))?.focus({ preventScroll: true })
+            // ;(first || primary || root.querySelector(".btn"))?.focus({ preventScroll: true })
         })
     }
 
