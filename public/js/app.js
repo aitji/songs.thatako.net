@@ -230,7 +230,7 @@
     function refreshFormState() {
         const block = submitBlock()
         submitBtn.disabled = block !== null
-        if (!formBusy) submitLabel.textContent = block === "closed" ? "ปิดรับคำขอ" : block === "cap" ? "ครบโควตาแล้ว" : "ขอเพลง"
+        if (!formBusy) submitLabel.textContent = block === "closed" ? "ปิดรับคำขอแล้ว" : block === "cap" ? "ครบโควตาแล้ว" : "ขอเพลง"
 
         const cap = capOf()
         if (cap === null) capNote.textContent = ""

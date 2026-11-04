@@ -107,10 +107,10 @@
                         <label for="nickname">ชื่อเล่น (ไม่บังคับ)<span class="counter" id="nick-count"></span></label>
                         <input type="text" id="nickname" placeholder="ชื่อที่คนอื่นจะเห็น" maxlength="24" autocomplete="off" />
 
-                        <button type="button" class="disclosure-btn" id="note-toggle" aria-expanded="true" aria-controls="note-wrap">
+                        <button type="button" class="disclosure-btn" id="note-toggle" aria-expanded="false" aria-controls="note-wrap">
                             <span data-icon="plus" data-size="16"></span>ฝากข้อความถึง PR (ไม่บังคับ)
                         </button>
-                        <div id="note-wrap">
+                        <div id="note-wrap" hidden>
                             <label for="note" style="margin-top:6px">ข้อความถึง PR<span class="counter" id="note-count"></span></label>
                             <textarea id="note" maxlength="120" rows="3" placeholder="เช่น ขอให้เปิดหลังประกาศเขต"></textarea>
                             <div class="hint">เห็นเฉพาะ PR, คนอื่นไม่เห็นข้อความนี้</div>
