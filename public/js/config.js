@@ -7,3 +7,5 @@ window.ytThumbnail = function (youtubeId) {
     if (typeof youtubeId !== "string" || !YT_ID_SAFE_RE.test(youtubeId)) return ""
     return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
 }
+
+// todo: add youtube search

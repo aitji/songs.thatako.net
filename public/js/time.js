@@ -27,11 +27,9 @@
 
     function computeLiveStatus(session) {
         const now = Date.now()
-        if (!session.requestOpen) return { open: false, label: "ปิดรับคำขอชั่วคราว (ปิดโดย PR)" }
-        if (now < session.openAt) return { open: false, label: `ยังไม่เปิดรับ, เปิด ${bangkokTimeStr(session.openAt)} น.` }
-        if (now > session.closeAt) {
-            return { open: false, label: `ปิดรับคำขอแล้ว (ปิดเมื่อ ${bangkokTimeStr(session.closeAt)} น.)` }
-        }
+        if (!session.requestOpen) return { open: false, label: "ปิดรับคำขอชั่วคราว" }
+        if (now < session.openAt) return { open: false, label: `จะเปิดรับเมื่อ ${bangkokTimeStr(session.openAt)} น.` }
+        if (now > session.closeAt) return { open: false, label: `ปิดรับคำขอเมื่อ ${bangkokTimeStr(session.closeAt)} น.` }
         return { open: true, label: `เปิดรับถึง ${bangkokTimeStr(session.closeAt)} น.` }
     }
 

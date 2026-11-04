@@ -1,6 +1,5 @@
 (function () {
     const YT_ID_RE = /^[a-zA-Z0-9_-]{11}$/
-
     const escapeHtml = (str) => {
         const d = document.createElement("div")
         d.textContent = str == null ? "" : String(str)
@@ -31,8 +30,8 @@
         const next = agoLabel(el.dataset.kind, Number(el.dataset.ago))
         if (el.textContent !== next) el.textContent = next
     })
-    setInterval(tickAgo, 30000)
 
+    setInterval(tickAgo, 30000)
     const P = {
         play: '<path d="M7 4.500v15l12.500-7.500z" fill="currentColor" stroke-width="1.500"/>',
         eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -54,12 +53,16 @@
         okc: '<circle cx="12" cy="12" r="9"/><path d="M8 12.500l3 3 5-6"/>',
         user: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.600 3.100-6 7-6s7 2.400 7 6"/>',
     }
-    const icon = (name, size = 18) =>
-        `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`
+    const icon = (name, size = 18) => `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`
 
-    const hydrateIcons = (root = document) => root.querySelectorAll("[data-icon]").forEach((el) => {
-        el.outerHTML = icon(el.dataset.icon, Number(el.dataset.size) || 18)
-    })
+    const hydrateIcons = (root = document) => root
+        .querySelectorAll("[data-icon]")
+        .forEach((el) =>
+            el.outerHTML = icon(
+                el.dataset.icon,
+                Number(el.dataset.size) || 18
+            )
+        )
 
     const parseYouTube = (raw) => {
         let s = String(raw || "").trim()
@@ -80,9 +83,7 @@
         const host = u.hostname.replace(/^www\./, "")
         const ok = (id) => (YT_ID_RE.test(id || "") ? { kind: "ok", id, url: s } : null)
 
-        if (host === "youtu.be") {
-            return ok(u.pathname.slice(1).split("/")[0]) || { kind: "error", reason: "ลิงก์ youtu.be ยังไม่ครบ ลองคัดลอกใหม่อีกครั้ง" }
-        }
+        if (host === "youtu.be") return ok(u.pathname.slice(1).split("/")[0]) || { kind: "error", reason: "ลิงก์ youtu.be ยังไม่ครบ ลองคัดลอกใหม่อีกครั้ง" }
         if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
             if (u.pathname === "/watch") {
                 return ok(u.searchParams.get("v")) || { kind: "error", reason: "ลิงก์นี้ไม่มีรหัสวิดีโอ ลองคัดลอกใหม่อีกครั้ง" }
@@ -93,7 +94,7 @@
             if (/^\/(@|channel\/|c\/|user\/)/.test(u.pathname)) return { kind: "error", reason: "นี่เป็นลิงก์ช่อง ต้องเป็นลิงก์ของวิดีโอ" }
             return { kind: "error", reason: "ลิงก์นี้ไม่ใช่วิดีโอ ลองคัดลอกจากปุ่มแชร์ของเพลง" }
         }
-        return { kind: "error", reason: "ต้องเป็นลิงก์จากยูทูบ (youtube.com หรือ youtu.be)" }
+        return { kind: "error", reason: "ต้องเป็นลิงก์จากยูทูบเท่านั้น" }
     }
 
     window.fmt = { escapeHtml, watchUrl, shortDevice, agoText, agoLabel, agoSpan, tickAgo, icon, hydrateIcons, parseYouTube, YT_ID_RE }
