@@ -62,7 +62,7 @@ export const mineRow = (r) => {
 
     const canEdit = r.status === "queued" || r.status === "playing"
     const actions = canEdit ? `<div class="row-actions">
-            <button type="button" class="btn small" data-manage="${esc(r.id)}">${icon("pencil", 15)}แก้ไขชื่อ / ข้อความ</button>
+            <button type="button" class="btn small" data-manage="${esc(r.id)}">${icon("pencil", 15)}แก้ไข</button>
             ${r.status === "queued" ? `<button type="button" class="btn small danger" data-remove="${esc(r.id)}">${icon("trash", 15)}ลบ</button>` : ""}
         </div>` : ""
 
