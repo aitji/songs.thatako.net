@@ -548,6 +548,10 @@ input.is-ok {
 
 /*turnstile slot*/
 .ts-box {
+    display: flex;
+    justify-content: center;
+    max-width: 100%;
+    overflow: hidden;
     margin-top: 14px;
     min-height: 65px;
 }

@@ -3,10 +3,10 @@ import { api } from "../core/api.js"
 import { connectEvents } from "../core/sse.js"
 import { KEYS, store } from "../core/store.js"
 import { hydrateIcons } from "../lib/icons.js"
-import { openInfoModal } from "../lib/modal.js"
+import { openInfoModal, openModal } from "../lib/modal.js"
 import { showToast } from "../lib/toast.js"
 import { startAgoTicker } from "../lib/text.js"
-import { initThemeToggle } from "../lib/themeToggle.js"
+import { applyThemePick, initThemeToggle, themeField } from "../lib/themeToggle.js"
 import { initForm } from "./form.js"
 import { initManage, refreshMine } from "./manage.js"
 import { renderLiveStatus, renderMine, renderSnapshot } from "./render.js"
@@ -19,6 +19,13 @@ const HELP_HTML = `<p>วางลิงก์ยูทูบแล้วกด 
     <p><strong>จัดการคำขอของคุณ:</strong> แก้ชื่อหรือข้อความถึง PR ได้ และลบเพลงที่ยังรอคิวได้ที่แท็บ "ของฉัน" เพลงที่กำลังเปิดหรือเปิดแล้วลบไม่ได้</p>
     <p><strong>ข้อความถึง PR</strong> เห็นเฉพาะ PR คนอื่นไม่เห็น</p>`
 const openHelp = () => openInfoModal("วิธีใช้งาน", HELP_HTML)
+const openWelcome = () => openModal({
+    title: "ยินดีต้อนรับ",
+    bodyHtml: HELP_HTML,
+    fields: [{ ...themeField(), label: "เลือกธีมที่ชอบ (เปลี่ยนทีหลังได้ที่ปุ่มมุมขวาบน)" }],
+    actions: [{ label: "เข้าใจแล้ว", value: "ok", variant: "primary" }],
+    onChange: applyThemePick,
+})
 
 const panels = { request: $("panel-request"), me: $("panel-me") }
 const tabButtons = document.querySelectorAll(".tab-btn")
@@ -49,7 +56,7 @@ document.querySelectorAll("[data-seg]").forEach((btn) => btn.addEventListener("c
 $("help-btn").addEventListener("click", openHelp)
 if (!store.get(KEYS.help)) {
     store.set(KEYS.help, "1")
-    setTimeout(openHelp, 500)
+    setTimeout(openWelcome, 500)
 }
 
 const form = initForm({

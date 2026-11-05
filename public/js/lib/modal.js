@@ -26,7 +26,7 @@ function onKeydown(e) {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
 }
 
-function closeModal(result) {
+export function closeModal(result) {
     ensureRoot().innerHTML = ""
     document.body.classList.remove("modal-open")
     document.removeEventListener("keydown", onKeydown)
@@ -39,11 +39,49 @@ function closeModal(result) {
     }
 }
 
+// mobile sheet: drag the grabber down to dismiss
+const SHEET_MQ = matchMedia("(max-width: 479px)")
+const DISMISS_DIST = 0.3 // of sheet height
+const DISMISS_SPEED = 0.6 // px/ms (quick flick)
+
+function bindSheetDrag(box) {
+    const grab = box.querySelector(".modal-grabber")
+    if (!grab) return
+    let pid = null, startY = 0, startT = 0, dy = 0
+
+    grab.addEventListener("pointerdown", (e) => {
+        if (!SHEET_MQ.matches || pid !== null) return
+        pid = e.pointerId; startY = e.clientY; startT = e.timeStamp; dy = 0
+        grab.setPointerCapture(pid)
+        box.style.animation = "none"
+        box.style.transition = "none"
+        grab.classList.add("dragging")
+    })
+    grab.addEventListener("pointermove", (e) => {
+        if (e.pointerId !== pid) return
+        dy = Math.max(0, e.clientY - startY) // down only
+        box.style.transform = `translateY(${dy}px)`
+    })
+    const end = (e) => {
+        if (e.pointerId !== pid) return
+        pid = null
+        grab.classList.remove("dragging")
+        const speed = dy / Math.max(e.timeStamp - startT, 1)
+        box.style.transition = "transform 170ms ease-out"
+        if (e.type !== "pointercancel" && (dy > box.offsetHeight * DISMISS_DIST || speed > DISMISS_SPEED)) {
+            box.style.transform = "translateY(100%)"
+            setTimeout(() => closeModal(null), 150)
+        } else box.style.transform = "" // snap back
+    }
+    grab.addEventListener("pointerup", end)
+    grab.addEventListener("pointercancel", end)
+}
+
 const btnHtml = (a, i, kind) => a.href
     ? `<a data-${kind}="${i}" class="btn ${esc(a.variant || "")}" href="${esc(a.href)}" target="_blank" rel="noopener noreferrer">${esc(a.label)}</a>`
     : `<button type="button" data-${kind}="${i}"${a.follow ? " data-follow" : ""} class="btn ${esc(a.variant || "")}">${esc(a.label)}</button>`
 
-export function openModal({ title, headerHtml = "", bodyHtml, bodyText = "", fields = [], actions = [], secondary = [] }) {
+export function openModal({ title, headerHtml = "", bodyHtml, bodyText = "", fields = [], actions = [], secondary = [], onChange = null }) {
     const body = bodyHtml ?? bodyText
     return new Promise((resolve) => {
         if (pendingResolve) pendingResolve(null)
@@ -67,9 +105,12 @@ export function openModal({ title, headerHtml = "", bodyHtml, bodyText = "", fie
         document.addEventListener("keydown", onKeydown)
 
         bindFields(el, fields)
-        el.querySelector(".modal-backdrop").addEventListener("click", (e) => {
-            if (e.target.classList.contains("modal-backdrop")) closeModal(null)
+        const backdrop = el.querySelector(".modal-backdrop")
+        backdrop.addEventListener("click", (e) => {
+            if (e.target === backdrop) closeModal(null)
         })
+        bindSheetDrag(el.querySelector(".modal-box"))
+        if (onChange) backdrop.addEventListener("change", () => onChange(readValues(el, fields))) // live (theme picker)
 
         const wire = (list, kind) => list.forEach((a, i) => {
             const btn = el.querySelector(`[data-${kind}="${i}"]`)

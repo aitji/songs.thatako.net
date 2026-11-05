@@ -58,12 +58,34 @@
     }
 }
 
+/* hit area is the full strip, the visible bar is ::before / drag down to dismiss (js/lib/modal.js) */
 .modal-grabber {
+    position: relative;
+    height: 28px;
+    margin: -10px -20px 0;
+    touch-action: none;
+    cursor: grab;
+}
+
+.modal-grabber::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 50%;
     width: 36px;
     height: 4px;
+    margin-left: -18px;
     border-radius: 4px;
     background: var(--line-strong);
-    margin: 0 auto 14px;
+    transition: background var(--speed);
+}
+
+.modal-grabber.dragging {
+    cursor: grabbing;
+}
+
+.modal-grabber.dragging::before {
+    background: var(--faint);
 }
 
 .modal-title {

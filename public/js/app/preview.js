@@ -39,7 +39,7 @@ export function createPreview(el, { onResolved }) {
             cur.status = meta.missing ? "missing" : "ok"
             el.querySelector(".pv-title").textContent = meta.missing ? "ไม่พบวิดีโอนี้" : (meta.title || "ลิงก์ถูกต้อง")
             el.querySelector(".pv-sub").textContent = meta.missing ? "วิดีโอถูกลบหรือเป็นส่วนตัว ลองเพลงอื่นนะ" : 'ถ้าใช่เพลงนี้ กด "ขอเพลง" ได้เลย'
-            onResolved()
+            onResolved(id)
         })
     }
 
@@ -47,6 +47,7 @@ export function createPreview(el, { onResolved }) {
         show,
         clear,
         isMissing: (id) => cur.id === id && cur.status === "missing",
+        isReady: (id) => cur.id === id && cur.status === "ok",
         hideSub(hidden) { const sub = el.querySelector(".pv-sub"); if (sub) sub.hidden = hidden },
     }
 }

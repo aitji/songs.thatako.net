@@ -1,9 +1,11 @@
 import { TURNSTILE_SITEKEY } from "./config.js"
-import { onThemeChange, resolvedTheme } from "./theme.js"
+import { resolvedTheme } from "./theme.js"
+import { closeModal, modalBody, openModal } from "../lib/modal.js"
 
 const SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-let loading = null
+const TOKEN_TTL = 270_000
 
+let loading = null
 const load = () => {
     if (loading) return loading
     loading = new Promise((resolve, reject) => {
@@ -18,46 +20,58 @@ const load = () => {
     return loading
 }
 
-export function mountTurnstile(el, { action, onToken = () => { } } = {}) {
-    let id = null
+export function createCaptcha({ action }) {
     let token = ""
-    let dead = false
+    let at = 0
+    let pending = null
 
-    const setToken = (t) => { token = t; onToken(t) }
-    async function render() {
+    const fresh = () => !!token && Date.now() - at < TOKEN_TTL
+
+    async function run() {
+        const done = openModal({
+            title: "ตรวจสอบความปลอดภัย",
+            bodyHtml: '<p>ยืนยันว่าคุณไม่ใช่บอทสักครู่ แล้วระบบจะไปต่อให้อัตโนมัติ</p><div class="ts-box"></div>',
+            actions: [{ label: "ยกเลิก", value: "cancel" }],
+        })
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur()
+        const box = modalBody().querySelector(".ts-box")
+        let id = null
+        let closed = false
+        done.then(() => {
+            closed = true
+            if (id !== null && window.turnstile) window.turnstile.remove(id)
+        })
+
         let ts
         try { ts = await load() }
-        catch { el.dataset.state = "error"; return }
-        if (dead) return
+        catch { box.dataset.state = "error"; await done; return "" }
+        if (closed) return ""
 
-        if (id !== null) ts.remove(id)
-        setToken("")
-        delete el.dataset.state
-        id = ts.render(el, {
+        id = ts.render(box, {
             sitekey: TURNSTILE_SITEKEY,
             action,
             theme: resolvedTheme(),
-            size: "flexible",
+            size: "normal", // fixed 300px (flexible overflowed the sheet)
             language: "th",
-            callback: setToken,
-            "expired-callback": () => setToken(""),
-            "timeout-callback": () => setToken(""),
+            callback: (t) => {
+                token = t
+                at = Date.now()
+                if (!closed) closeModal({ action: "ok" })
+            },
         })
+
+        const res = await done
+        return res && res.action === "ok" && fresh() ? token : ""
     }
 
-    const off = onThemeChange(render)
-    render()
-
     return {
-        token: () => token,
-        reset() {
-            setToken("")
-            if (id !== null && window.turnstile) window.turnstile.reset(id)
+        token: () => (fresh() ? token : ""),
+        ensure() {
+            if (fresh()) return Promise.resolve(token)
+            if (!pending) pending = run().finally(() => { pending = null })
+            return pending
         },
-        destroy() {
-            dead = true
-            off()
-            if (id !== null && window.turnstile) window.turnstile.remove(id)
-        },
+        // tokens are single use -> call after every send
+        reset() { token = ""; at = 0 },
     }
 }

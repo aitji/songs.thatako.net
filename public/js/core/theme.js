@@ -32,11 +32,6 @@ export const setMode = (next) => {
     apply()
 }
 
-export const cycleMode = () => {
-    setMode(MODES[(MODES.indexOf(mode) + 1) % MODES.length])
-    return mode
-}
-
 export const onThemeChange = (fn) => {
     const h = (e) => fn(e.detail)
     bus.addEventListener("change", h)

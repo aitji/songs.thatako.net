@@ -1,6 +1,6 @@
 import { $, spinnerHtml } from "../lib/dom.js"
 import { api } from "../core/api.js"
-import { mountTurnstile } from "../core/turnstile.js"
+import { createCaptcha } from "../core/turnstile.js"
 import { showToast } from "../lib/toast.js"
 
 const LOGIN_ERR = {
@@ -15,22 +15,21 @@ export function initAuth({ onAuthed }) {
     const pass = $("password-input")
     const btn = $("login-btn")
     const label = $("login-btn-label")
-    let captcha = null
+    const captcha = createCaptcha({ action: "login" })
     let busy = false
 
-    const sync = () => {
-        btn.disabled = busy || !(captcha && captcha.token())
-        if (!busy) label.textContent = captcha && captcha.token() ? "เข้าสู่ระบบ" : "กำลังตรวจสอบ..."
-    }
-
     const showLogin = () => {
-        if (!captcha) captcha = mountTurnstile($("ts-login"), { action: "login", onToken: sync })
-        sync()
+        $("login-section").style.display = ""
+        pass.focus()
     }
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
-        if (!captcha || btn.disabled) return
+        if (busy || !pass.value) return
+
+        const token = await captcha.ensure()
+        if (!token) return // closed -> idle
+
         pass.classList.remove("is-error")
         busy = true
         pass.disabled = true
@@ -38,7 +37,7 @@ export function initAuth({ onAuthed }) {
         label.innerHTML = spinnerHtml("กำลังเข้าสู่ระบบ...")
 
         try {
-            await api.post("/api/admin/login", { password: pass.value, turnstileToken: captcha.token() })
+            await api.post("/api/admin/login", { password: pass.value, turnstileToken: token })
             onAuthed()
         } catch (err) {
             pass.classList.add("is-error")
@@ -48,8 +47,9 @@ export function initAuth({ onAuthed }) {
             captcha.reset()
             busy = false
             pass.disabled = false
+            btn.disabled = false
+            label.textContent = "เข้าสู่ระบบ"
             if (pass.classList.contains("is-error")) pass.focus()
-            sync()
         }
     })
 

@@ -1,7 +1,7 @@
 import { $, bindCounter, spinnerHtml, toggleWrap } from "../lib/dom.js"
 import { api } from "../core/api.js"
 import { KEYS, store } from "../core/store.js"
-import { mountTurnstile } from "../core/turnstile.js"
+import { createCaptcha } from "../core/turnstile.js"
 import { showToast } from "../lib/toast.js"
 import { createUrlField } from "../lib/urlfield.js"
 import { createPreview } from "./preview.js"
@@ -22,9 +22,11 @@ export function initForm({ onSent }) {
     const formStatus = $("form-status")
     const capNote = $("cap-note")
     let busy = false
+    let dismissed = false
+    let lastId = null
 
-    const captcha = mountTurnstile($("ts-request"), { action: "request", onToken: () => refresh() })
-    const preview = createPreview($("url-preview"), { onResolved: () => { field.render(); refresh() } })
+    const captcha = createCaptcha({ action: "request" })
+    const preview = createPreview($("url-preview"), { onResolved: (id) => { field.render(); refresh(); autoChallenge(id) } })
     const field = createUrlField({
         input: urlInput,
         msg: $("url-msg"),
@@ -34,7 +36,12 @@ export function initForm({ onSent }) {
             if (p.kind === "ok") { preview.show(p.id); preview.hideSub(!!duplicateOf(p.id)) }
             else preview.clear()
         },
-        onChange: () => refresh(),
+        onChange: (p) => {
+            const id = p.kind === "ok" ? p.id : null
+            if (id !== lastId) { lastId = id; dismissed = false }
+            refresh()
+            autoChallenge(id)
+        },
     })
 
     nickInput.value = store.get(KEYS.nick) || ""
@@ -54,11 +61,19 @@ export function initForm({ onSent }) {
         return null
     }
 
-    const LABEL = { closed: "ปิดรับคำขอแล้ว", cap: "ครบโควตาแล้ว", captcha: "กำลังตรวจสอบ..." }
+    function autoChallenge(id) {
+        if (dismissed || !id || block() !== "captcha") return
+        if (!preview.isReady(id)) return
+        if ($("panel-request").hidden || document.body.classList.contains("modal-open")) return
+        captcha.ensure().then((t) => { if (!t) dismissed = true })
+    }
+
+    const LABEL = { closed: "ปิดรับคำขอแล้ว", cap: "ครบโควตาแล้ว" }
     function refresh() {
         const b = block()
-        submitBtn.disabled = b !== null
-        if (!busy) submitLabel.textContent = LABEL[b] || "ขอเพลง"
+        const hard = b === "captcha" ? null : b
+        submitBtn.disabled = hard !== null
+        if (!busy) submitLabel.textContent = LABEL[hard] || "ขอเพลง"
 
         const cap = capOf()
         if (cap === null) capNote.textContent = ""
@@ -99,7 +114,13 @@ export function initForm({ onSent }) {
 
     $("request-form").addEventListener("submit", async (e) => {
         e.preventDefault()
+        const b = block()
+        if (b !== null && b !== "captcha") return
+
+        const t = await captcha.ensure()
+        if (!t) return dismissed = true
         if (block() !== null) return
+
         const nickname = nickInput.value.trim()
         const note = noteInput.value.trim()
         store.set(KEYS.nick, nickname)
@@ -112,7 +133,7 @@ export function initForm({ onSent }) {
                 youtubeUrl: field.parsed().url,
                 nickname: nickname || null,
                 note: note || null,
-                turnstileToken: captcha.token(),
+                turnstileToken: t,
             })
             resetForm()
             formStatus.textContent = "ส่งคำขอเรียบร้อยแล้ว"
@@ -124,7 +145,8 @@ export function initForm({ onSent }) {
             if (FORM_ERR_FIELD.includes(err.code)) field.fail(message)
             showToast(message, "error")
         } finally {
-            captcha.reset()
+            captcha.reset() // single use
+            dismissed = false
             setBusy(false)
         }
     })
