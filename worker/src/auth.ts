@@ -1,38 +1,31 @@
 import type { Env } from "./types"
-import { adminToken, parseCookie, serializeCookie, verifyAdminToken } from "./utils"
+import { COOKIE_NAME, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS, TOKEN_TTL_MS } from "./config"
+import { adminToken, verifyAdminToken } from "./lib/token"
+import { parseCookie, serializeCookie } from "./lib/cookie"
 
-const COOKIE_NAME = "pr_session"
-const TOKEN_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
-const LOGIN_WINDOW_MS = 10 * 60 * 1000
-const LOGIN_MAX_ATTEMPTS = 8
-
-export const isAdmin = async (request: Request, env: Env): Promise<boolean> => {
-    const cookies = parseCookie(request.headers.get("Cookie"))
-    const token = cookies[COOKIE_NAME]
-    if (!token) return false
-    return verifyAdminToken(token, env.SESSION_SECRET)
+// session cookie
+export const isAdmin = async (req: Request, env: Env): Promise<boolean> => {
+    const token = parseCookie(req.headers.get("Cookie"))[COOKIE_NAME]
+    return !!token && verifyAdminToken(token, env.SESSION_SECRET)
 }
 
-export const loginCookie = async (env: Env): Promise<string> => {
-    const t = await adminToken(env.SESSION_SECRET, TOKEN_TTL_MS)
-    return serializeCookie(COOKIE_NAME, t, { maxAgeSeconds: TOKEN_TTL_MS / 1000 })
-}
+export const loginCookie = async (env: Env, dev: boolean): Promise<string> => serializeCookie(COOKIE_NAME, await adminToken(env.SESSION_SECRET, TOKEN_TTL_MS), { maxAgeSeconds: TOKEN_TTL_MS / 1000, dev })
+export const logoutCookie = (dev: boolean): string => serializeCookie(COOKIE_NAME, "", { clear: true, dev })
 
-export const logoutSC = (): string => serializeCookie(COOKIE_NAME, "", { clear: true })
-export const isRateLimit = async (db: D1Database, ip: string): Promise<boolean> => {
+// brute-force limit
+export const canLogin = async (db: D1Database, ip: string): Promise<boolean> => {
     const row = await db.prepare("SELECT * FROM login_attempts WHERE ip = ?").bind(ip).first<any>()
-    if (!row) return true
-    if (Date.now() - row.window_start > LOGIN_WINDOW_MS) return true
+    if (!row || Date.now() - row.window_start > LOGIN_WINDOW_MS) return true
     return row.count < LOGIN_MAX_ATTEMPTS
 }
 
-export const saveLoginDB = async (db: D1Database, ip: string, success: boolean): Promise<void> => {
-    const now = Date.now()
+export const recordLogin = async (db: D1Database, ip: string, success: boolean): Promise<void> => {
     if (success) {
         await db.prepare("DELETE FROM login_attempts WHERE ip = ?").bind(ip).run()
         return
     }
 
+    const now = Date.now()
     const row = await db.prepare("SELECT * FROM login_attempts WHERE ip = ?").bind(ip).first<any>()
     if (!row || now - row.window_start > LOGIN_WINDOW_MS) await db
         .prepare(`INSERT INTO login_attempts (ip, count, window_start) VALUES (?, 1, ?) ON CONFLICT(ip) DO UPDATE SET count = 1, window_start = excluded.window_start`)
@@ -41,10 +34,10 @@ export const saveLoginDB = async (db: D1Database, ip: string, success: boolean):
     else await db.prepare("UPDATE login_attempts SET count = count + 1 WHERE ip = ?").bind(ip).run()
 }
 
-export const isPass = (inp: unknown, exp: string): boolean => {
-    if (typeof inp !== "string") return false
-    if (inp.length !== exp.length) return false
-    let result = 0
-    for (let i = 0; i < inp.length; i++) result |= inp.charCodeAt(i) ^ exp.charCodeAt(i)
-    return result === 0
+// constant-time compare
+export const isPass = (input: unknown, expected: string): boolean => {
+    if (typeof input !== "string" || input.length !== expected.length) return false
+    let diff = 0
+    for (let i = 0; i < input.length; i++) diff |= input.charCodeAt(i) ^ expected.charCodeAt(i)
+    return diff === 0
 }

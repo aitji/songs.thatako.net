@@ -4,11 +4,13 @@
     "private": true,
     "scripts": {
         "dev": "wrangler dev",
+        "dev:lan": "wrangler dev --ip 0.0.0.0",
         "deploy": "wrangler deploy",
         "db:create": "wrangler d1 create morning-song-queue",
-        "db:migrate": "wrangler d1 execute morning-song-queue --file=./schema.sql",
+        "db:local": "wrangler d1 execute morning-song-queue --local --file=./schema.sql",
+        "db:migrate": "wrangler d1 execute morning-song-queue --local --file=./schema.sql",
         "db:migrate:remote": "wrangler d1 execute morning-song-queue --remote --file=./schema.sql",
-        "secrets": "echo 'run: wrangler secret put ADMIN_PASSWORD   &&   wrangler secret put SESSION_SECRET'",
+        "secrets": "echo 'run: wrangler secret put ADMIN_PASSWORD  &&  wrangler secret put SESSION_SECRET  &&  wrangler secret put TURNSTILE_SECRET'",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {

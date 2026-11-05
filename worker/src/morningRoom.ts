@@ -1,5 +1,5 @@
 import type { Env, StateSnapshot } from "./types"
-import { stripPrivate } from "./utils"
+import { stripPrivate } from "./db/snapshot"
 
 const EMPTY_SNAPSHOT: StateSnapshot = {
     version: 0,
@@ -8,38 +8,40 @@ const EMPTY_SNAPSHOT: StateSnapshot = {
     queue: [], played: []
 }
 
+const HEARTBEAT_MS = 15000
 interface Client {
     controller: ReadableStreamDefaultController<Uint8Array>
     connId: string
     isAdmin: boolean
 }
 
+const jsonRes = (data: unknown): Response =>
+    new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } })
+
 export class MorningRoom {
     private state: DurableObjectState
-    private clients: Map<string, Client>
-    private encoder: TextEncoder
+    private clients = new Map<string, Client>()
+    private encoder = new TextEncoder()
 
     constructor(state: DurableObjectState, _env: Env) {
         this.state = state
-        this.clients = new Map()
-        this.encoder = new TextEncoder()
     }
 
+    // routes
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url)
-        if (url.pathname === "/events" && request.method === "GET") return this.handleSSE(url)
-        if (url.pathname === "/state" && request.method === "GET") {
-            const snap = await this.getSnapshot()
-            return new Response(JSON.stringify(snap), { headers: { "Content-Type": "application/json" } })
-        }
-        if (url.pathname === "/sync" && request.method === "POST") {
-            const body = (await request.json()) as StateSnapshot
-            await this.applySnapshot(body)
-            return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } })
+        const { method } = request
+
+        if (url.pathname === "/events" && method === "GET") return this.handleSSE(url)
+        if (url.pathname === "/state" && method === "GET") return jsonRes(await this.getSnapshot())
+        if (url.pathname === "/sync" && method === "POST") {
+            await this.applySnapshot((await request.json()) as StateSnapshot)
+            return jsonRes({ ok: true })
         }
         return new Response("not found", { status: 404 })
     }
 
+    // sse
     private handleSSE(url: URL): Response {
         const client: Client = {
             controller: null as unknown as ReadableStreamDefaultController<Uint8Array>,
@@ -59,7 +61,7 @@ export class MorningRoom {
                 heartbeat = setInterval(() => {
                     try { controller.enqueue(this.encoder.encode(": ping\n\n")) }
                     catch { this.dropClient(client.connId, heartbeat) }
-                }, 15000)
+                }, HEARTBEAT_MS)
             },
             cancel: () => this.dropClient(client.connId, heartbeat),
         })
@@ -85,11 +87,12 @@ export class MorningRoom {
         catch { this.clients.delete(client.connId) }
     }
 
+    // snapshot
     private async getSnapshot(): Promise<StateSnapshot> {
-        const stored = await this.state.storage.get<StateSnapshot>("snapshot")
-        return stored ?? EMPTY_SNAPSHOT
+        return (await this.state.storage.get<StateSnapshot>("snapshot")) ?? EMPTY_SNAPSHOT
     }
 
+    // store + push
     private async applySnapshot(snapshot: StateSnapshot): Promise<void> {
         await this.state.storage.put("snapshot", snapshot)
         const publicSnapshot = stripPrivate(snapshot)

@@ -4,6 +4,8 @@ export interface Env {
     ADMIN_PASSWORD: string
     SESSION_SECRET: string
     ALLOWED_ORIGIN?: string
+    TURNSTILE_SECRET?: string
+    DEV?: string
 }
 
 export type RequestStatus = "queued" | "playing" | "played" | "skipped"
@@ -40,6 +42,8 @@ export interface SessionSettings {
     autoplay: boolean
     createdAt: number
 }
+
+export type SessionPatch = Partial<Pick<SessionSettings, "openAt" | "closeAt" | "requestCap" | "requestOpen" | "autoplay">>
 
 export interface PublicRequest {
     id: string

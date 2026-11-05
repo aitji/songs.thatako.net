@@ -10,11 +10,16 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="language" content="th" />
 
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/overlay.css" />
+    <link rel="stylesheet" href="css/admin.css" />
 
     <!-- browser / ui -->
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)" />
 
     <!-- iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -26,16 +31,19 @@
     <link rel="icon" href="/img/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png" />
+    <script src="js/boot.js"></script>
 </head>
 
 <body>
     <section id="login-section" class="login-shell">
+        <button class="icon-btn login-theme" type="button" data-theme-toggle></button>
         <div class="brand">@pr</div>
         <div class="panel">
             <form id="login-form">
                 <label for="password-input" style="margin-top:0">รหัสผ่าน PR</label>
                 <input type="password" id="password-input" required autofocus autocomplete="current-password" />
-                <button type="submit" id="login-btn" class="btn primary"><span id="login-btn-label">เข้าสู่ระบบ</span></button>
+                <div id="ts-login" class="ts-box"></div>
+                <button type="submit" id="login-btn" class="btn primary" disabled><span id="login-btn-label">กำลังตรวจสอบ...</span></button>
             </form>
         </div>
     </section>
@@ -45,6 +53,7 @@
             <h1>@pr</h1>
             <div class="admin-topbar-right">
                 <span id="admin-device-chip" class="device-chip" title="Device ID ของคุณ"></span>
+                <button class="icon-btn" type="button" data-theme-toggle></button>
                 <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน"><span data-icon="help" data-size="18"></span></button>
             </div>
         </div>
@@ -168,13 +177,7 @@
         </nav>
     </div>
 
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/common.js"></script>
-    <script src="js/sse.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/time.js"></script>
-    <script src="js/admin.js"></script>
+    <script type="module" src="js/admin/main.js"></script>
 </body>
 
 </html>

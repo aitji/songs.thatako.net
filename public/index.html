@@ -13,7 +13,10 @@
     <meta name="language" content="th" />
 
     <link rel="canonical" href="https://songs.thatako.net" />
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/overlay.css" />
 
     <!-- open graph / discord / facebook -->
     <meta property="og:type" content="website" />
@@ -30,8 +33,9 @@
         content="ขอเพลงเสียงตามสายช่วงเช้า สำหรับงานประชาสัมพันธ์ โรงเรียนท่าตะโกพิทยาคม" />
 
     <!-- browser / ui -->
-    <meta name="theme-color" content="#ffffff">
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)" />
     <meta name="msapplication-TileColor" content="#ffffff">
 
     <!-- iOS -->
@@ -58,6 +62,7 @@
 
     <!-- web app -->
     <link rel="manifest" href="/img/manifest.webmanifest" />
+    <script src="js/boot.js"></script>
 </head>
 
 <body>
@@ -65,7 +70,10 @@
         <header class="topbar">
             <div class="topbar-inner">
                 <span class="topbar-title">เสียงตามสายตอนเช้า<small>ขอเพลงให้ PR เปิดให้ฟัง</small></span>
-                <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน"><span data-icon="help" data-size="18"></span></button>
+                <div class="topbar-actions">
+                    <button class="icon-btn" type="button" data-theme-toggle></button>
+                    <button id="help-btn" class="icon-btn" type="button" aria-label="วิธีใช้งาน"><span data-icon="help" data-size="18"></span></button>
+                </div>
             </div>
         </header>
 
@@ -115,6 +123,8 @@
                             <textarea id="note" maxlength="120" rows="3" placeholder="เช่น ขอให้เปิดหลังประกาศเขต"></textarea>
                             <div class="hint">เห็นเฉพาะ PR, คนอื่นไม่เห็นข้อความนี้</div>
                         </div>
+
+                        <div id="ts-request" class="ts-box"></div>
 
                         <div class="submit-row">
                             <button type="submit" id="submit-btn" class="btn primary" disabled><span id="submit-btn-label">ขอเพลง</span></button>
@@ -168,13 +178,7 @@
         </nav>
     </div>
 
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/common.js"></script>
-    <script src="js/sse.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/time.js"></script>
-    <script src="js/app.js"></script>
+    <script type="module" src="js/app/main.js"></script>
 </body>
 
 </html>

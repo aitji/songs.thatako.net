@@ -10,7 +10,8 @@
     <meta name="robots" content="noindex, follow" />
     <meta name="language" content="th" />
 
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="/css/theme.css" />
+    <link rel="stylesheet" href="/css/base.css" />
 
     <!-- open graph / discord / facebook -->
     <meta property="og:type" content="website" />
@@ -25,8 +26,9 @@
     <meta name="twitter:description" content="ไม่พบหน้าที่คุณกำลังค้นหา" />
 
     <!-- browser / ui -->
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)" />
 
     <!-- iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -38,6 +40,7 @@
     <link rel="icon" href="/img/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png" />
+    <script src="/js/boot.js"></script>
 </head>
 
 <body>
