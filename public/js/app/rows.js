@@ -55,7 +55,7 @@ export const mineRow = (r) => {
     const bits = [`<span class="status-badge st-${r.status}">${STATUS_LABEL[r.status] || r.status}</span>`]
     if (r.status === "queued") {
         const idx = queuePos(r.id)
-        if (idx !== null) bits.push(idx === 0 ? "เป็นคิวถัดไป" : `มี ${idx} เพลงอยู่ก่อนคุณ`)
+        if (idx !== null) bits.push(idx === 0 ? "เป็นคิวถัดไป" : `มี ${idx} เพลงอยู่หน้าคุณ`)
     }
     if (r.status === "skipped" && r.skipReason) bits.push(`เหตุผล: ${esc(r.skipReason)}`)
     if (r.reviewed && (r.status === "queued" || r.status === "playing")) bits.push(reviewedChip(r))

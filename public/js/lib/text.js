@@ -1,7 +1,7 @@
 import { esc } from "./dom.js"
 
 export const UNNAMED = "ไม่ระบุชื่อ"
-export const STATUS_LABEL = { queued: "รอคิว", playing: "กำลังเปิด", played: "เปิดแล้ว", skipped: "ข้ามเพลง" }
+export const STATUS_LABEL = { queued: "รอคิว", playing: "กำลังเปิด", played: "เปิดแล้ว", skipped: "ถูกข้าม" }
 
 export const whoOf = (r) => r.nickname || UNNAMED
 export const clip = (t, n = 28) => (t && t.length > n ? t.slice(0, n) + "…" : t || "")

@@ -442,6 +442,20 @@ button.chip.dev {
     overflow-wrap: anywhere;
 }
 
+/*indent helper*/
+dt {
+    font-weight: 700;
+    color: var(--muted);
+    margin-top: 0.75rem;
+}
+
+dd {
+    margin: 0 0 0;
+    padding: 0;
+    text-indent: 1.25rem;
+    color: var(--color-text-2);
+}
+
 /*seg tabs*/
 .seg {
     display: flex;
