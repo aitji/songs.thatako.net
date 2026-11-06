@@ -4,6 +4,9 @@ export const KEYS = {
     help: "msq_seen_help",
     adminHelp: "msq_admin_seen_help",
     theme: "msq_theme",
+    client: "msq_admin_client",
+    speakerPref: "msq_speaker_pref",
+    speakerVol: "msq_speaker_vol",
 }
 
 export const store = {

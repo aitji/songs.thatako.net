@@ -63,6 +63,37 @@ export interface PublicRequest {
     note?: string | null
 }
 
+// player
+export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "buffering"
+export type PlayerCmdType = "play" | "pause" | "seek" | "volume" | "mute"
+export type PlayerActionKind = PlayerCmdType | "claim" | "release"
+
+export interface PlayerAction {
+    by: string
+    byId: string
+    what: PlayerActionKind
+    local: boolean
+    at: number
+}
+
+export interface PlaybackState {
+    rev: number
+    playerId: string | null
+    playerLabel: string | null
+    online: boolean
+    lastSeen: number
+    requestId: string | null
+    status: PlayerStatus
+    positionMs: number
+    durationMs: number
+    updatedAt: number
+    volume: number
+    muted: boolean
+    needsGesture: boolean
+    lastAction: PlayerAction | null
+    serverTime: number
+}
+
 export interface StateSnapshot {
     version: number
     session: {

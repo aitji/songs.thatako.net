@@ -59,17 +59,47 @@ export const setPlayingExclusive = async (db: D1Database, sessionId: string, id:
         .run()
 }
 
-// idle/autoplay
-export const maybeAutoAdvance = async (db: D1Database, sessionId: string): Promise<boolean> => {
-    if (!(await ensureSession(db, sessionId)).autoplay) return false
-    if (await getPlaying(db, sessionId)) return false
-
+// playing
+const promoteNext = async (db: D1Database, sessionId: string): Promise<boolean> => {
     const [next] = await getQueue(db, sessionId)
     if (!next) return false
 
     await db
         .prepare(`UPDATE requests SET status = 'playing', position = NULL, updated_at = ? WHERE id = ?`)
         .bind(Date.now(), next.id)
+        .run()
+    return true
+}
+
+// idle/autoplay
+export const maybeAutoAdvance = async (db: D1Database, sessionId: string): Promise<boolean> => {
+    if (!(await ensureSession(db, sessionId)).autoplay) return false
+    if (await getPlaying(db, sessionId)) return false
+    return promoteNext(db, sessionId)
+}
+
+export const playNext = async (db: D1Database, sessionId: string): Promise<boolean> => {
+    const current = await getPlaying(db, sessionId)
+    if (current) {
+        const now = Date.now()
+        await db
+            .prepare(`UPDATE requests SET status = 'played', played_at = ?, updated_at = ?, position = NULL WHERE id = ?`)
+            .bind(now, now, current.id)
+            .run()
+    }
+    return promoteNext(db, sessionId)
+}
+
+export const playPrevious = async (db: D1Database, sessionId: string): Promise<boolean> => {
+    const [prev] = await getPlayed(db, sessionId, 1)
+    if (!prev) return false
+
+    const current = await getPlaying(db, sessionId)
+    if (current) await requeueRequest(db, sessionId, current.id, true)
+
+    await db
+        .prepare(`UPDATE requests SET status = 'playing', position = NULL, skip_reason = NULL, updated_at = ? WHERE id = ?`)
+        .bind(Date.now(), prev.id)
         .run()
     return true
 }

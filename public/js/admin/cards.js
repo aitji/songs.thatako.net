@@ -2,6 +2,8 @@ import { $, esc } from "../lib/dom.js"
 import { icon } from "../lib/icons.js"
 import { agoSpan, shortDevice, whoOf } from "../lib/text.js"
 import { watchUrl, YT_ID_RE, ytThumbnail } from "../lib/youtube.js"
+import { showToast } from "../lib/toast.js"
+import { isSpeaker } from "./player.js"
 import { songById, state } from "./state.js"
 
 // helpers
@@ -23,6 +25,7 @@ const closePreview = (card) => {
 }
 
 export function togglePreview(card, r) {
+    if (isSpeaker()) return showToast("เครื่องนี้เป็นลำโพงโรงเรียน ฟังตัวอย่างจากเครื่องอื่นแทนนะ (เสียงจะดังทั้งโรงเรียน)", "error")
     const queuePanel = $("admin-queue")
     const opening = state.previewId !== r.id
     queuePanel.querySelectorAll(".song").forEach(closePreview)

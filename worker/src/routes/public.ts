@@ -26,7 +26,11 @@ const events: Handler = async (c) => {
     await ensureSnapshot(c.env, c.sessionId)
 
     const doUrl = new URL("https://do/events")
-    if (await isAdmin(c.req, c.env)) doUrl.searchParams.set("admin", "1")
+    if (await isAdmin(c.req, c.env)) {
+        doUrl.searchParams.set("admin", "1")
+        const cid = cleanDevice(c.url.searchParams.get("cid"))
+        if (cid) doUrl.searchParams.set("cid", cid)
+    }
 
     const res = await roomOf(c.env, c.sessionId).fetch(doUrl.toString())
     const headers = new Headers(res.headers)

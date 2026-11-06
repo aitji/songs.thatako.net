@@ -11,6 +11,11 @@ export const TOKEN_TTL_MS = 12 * 60 * 60 * 1000 // 12h
 export const LOGIN_WINDOW_MS = 10 * 60 * 1000
 export const LOGIN_MAX_ATTEMPTS = 8
 
+// player
+export const PLAYER_ONLINE_MS = 30 * 1000
+export const CLIENT_LABEL_MAX = 40
+export const MAX_SEEK_MS = 24 * 60 * 60 * 1000
+
 // limits
 export const NICK_MAX = 24
 export const NOTE_MAX = 120

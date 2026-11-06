@@ -2,6 +2,7 @@ import { $ } from "../lib/dom.js"
 import { renderOnAir, renderQueue, playedCard } from "./cards.js"
 import { refreshAdd } from "./addsong.js"
 import { applySettingsInputs, applySettingsStatus } from "./settings.js"
+import { onSnapshot as playerSnapshot } from "./player.js"
 import { isStale, state } from "./state.js"
 
 const EMPTY_PLAYED = '<p class="empty-hint">ยังไม่มีเพลงที่เปิดแล้ว</p>'
@@ -31,6 +32,7 @@ export function render(snap) {
 // held updates
 export function onSnapshot(snap) {
     if (isStale(snap, state.pending || state.snap)) return
+    playerSnapshot(snap)
     if (state.dragging) { state.pending = snap; return }
     render(snap)
 }

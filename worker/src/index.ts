@@ -5,6 +5,7 @@ import { makeCtx } from "./http/ctx"
 import { dispatch } from "./http/router"
 import { publicRoutes } from "./routes/public"
 import { adminAuthRoutes, adminRoutes } from "./routes/admin"
+import { playerRoutes } from "./routes/player"
 export { MorningRoom } from "./morningRoom"
 
 export default {
@@ -26,7 +27,7 @@ export default {
             // pr only
             if (c.url.pathname.startsWith("/api/admin/")) {
                 if (!(await isAdmin(req, env))) return c.fail("unauthorized", 401)
-                const res = await dispatch(adminRoutes, c)
+                const res = await dispatch([...adminRoutes, ...playerRoutes], c)
                 if (res) return res
             }
 

@@ -23,6 +23,14 @@ cloudflare worker
 * https://api.songs.thatako.net/api/admin/queue/:id/review (POST) `{reviewed?}`
 * https://api.songs.thatako.net/api/admin/device/dev_[DEVICE_ID]/requests (GET)
 
+* https://api.songs.thatako.net/api/admin/player/claim (POST) `{clientId, label, force?}`
+* https://api.songs.thatako.net/api/admin/player/release (POST) `{clientId}`
+* https://api.songs.thatako.net/api/admin/player/report (POST) `{clientId, requestId, status, positionMs, durationMs, volume, muted, needsGesture, local?}`
+* https://api.songs.thatako.net/api/admin/player/cmd (POST) `{clientId, type: play|pause|seek|volume|mute, value?, by}`
+* https://api.songs.thatako.net/api/admin/player/ended (POST) `{requestId}`
+* https://api.songs.thatako.net/api/admin/player/failed (POST) `{requestId, code}`
+* https://api.songs.thatako.net/api/admin/player/next (POST)
+
 secrets: `ADMIN_PASSWORD` `SESSION_SECRET` `TURNSTILE_SECRET` (`npx wrangler secret put <NAME>`)
 local: `npm run dev` (needs `.dev.vars`, see `.dev.vars.example`)
 

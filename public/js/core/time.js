@@ -8,6 +8,12 @@ const bangkokParts = (epoch) => {
     return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute") }
 }
 
+// yyyy-mm-dd
+export const bangkokDateStr = (epoch = Date.now()) => {
+    const p = bangkokParts(epoch)
+    return `${p.year}-${p.month}-${p.day}`
+}
+
 export const bangkokTimeStr = (epoch) => {
     const p = bangkokParts(epoch)
     return `${p.hour}:${p.minute}`
